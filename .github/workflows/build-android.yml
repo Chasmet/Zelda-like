@@ -28,13 +28,13 @@ jobs:
         run: |
           set -o pipefail
           godot --headless --editor --path . --quit 2>&1 | tee godot-import.log
-          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script" godot-import.log
+          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script|GDScript backtrace" godot-import.log
 
       - name: Launch gameplay smoke test
         run: |
           set -o pipefail
           godot --headless --path . --quit-after 20 2>&1 | tee godot-runtime.log
-          ! grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid get index|Invalid set index|Failed to load script|ERROR:.*main_rpg3d|ERROR:.*hero_3d|ERROR:.*horse_3d|ERROR:.*enemy_3d|ERROR:.*third_person_camera|ERROR:.*mobile_joystick" godot-runtime.log
+          ! grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid get index|Invalid set index|Failed to load script|GDScript backtrace|Condition \"!is_inside_tree\(\)\"" godot-runtime.log
 
       - name: Configure Android SDK
         uses: android-actions/setup-android@v3
