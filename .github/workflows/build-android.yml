@@ -17,6 +17,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
+      - name: Install Godot 4.7.1 for validation
+        run: |
+          wget -q https://github.com/godotengine/godot-builds/releases/download/4.7.1-stable/Godot_v4.7.1-stable_linux.x86_64.zip -O /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          chmod +x /tmp/godot/Godot_v4.7.1-stable_linux.x86_64
+          sudo ln -sf /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 /usr/local/bin/godot
+
+      - name: Import project and validate scripts
+        run: |
+          set -o pipefail
+          godot --headless --editor --path . --quit 2>&1 | tee godot-import.log
+          ! grep -E "SCRIPT ERROR|Parse Error|Failed to load script" godot-import.log
+
+      - name: Launch gameplay smoke test
+        run: |
+          set -o pipefail
+          godot --headless --path . --quit-after 20 2>&1 | tee godot-runtime.log
+          ! grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid get index|Invalid set index|Failed to load script|ERROR:.*main_rpg3d|ERROR:.*hero_3d|ERROR:.*horse_3d|ERROR:.*enemy_3d|ERROR:.*third_person_camera|ERROR:.*mobile_joystick" godot-runtime.log
+
       - name: Configure Android SDK
         uses: android-actions/setup-android@v3
 
@@ -37,10 +56,21 @@ jobs:
           find build -type f -name "*.apk" -print
           test -n "$(find build -type f -name '*.apk' -print -quit)"
 
+      - name: Upload validation logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: Godot-RPG3D-validation-logs
+          path: |
+            godot-import.log
+            godot-runtime.log
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Upload Android APK
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Android-debug
+          name: Skypiea-RPG3D-Android-debug
           path: build/**/*.apk
           if-no-files-found: error
           retention-days: 30
