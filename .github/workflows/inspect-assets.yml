@@ -1,0 +1,33 @@
+name: Inspect Source Assets
+
+on:
+  push:
+    branches: ["agent/rebuild-rpg3d-v3"]
+  workflow_dispatch:
+
+jobs:
+  package-source:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          lfs: true
+
+      - name: Create inventory
+        run: |
+          find . -type f -not -path './.git/*' -printf '%P\t%s bytes\n' | sort > asset-inventory.txt
+
+      - name: Upload source and assets
+        uses: actions/upload-artifact@v7
+        with:
+          name: ZeldaLike-source-inspection
+          path: |
+            .
+            !.git/**
+            !.godot/**
+            !build/**
+          include-hidden-files: true
+          retention-days: 7
