@@ -4,19 +4,19 @@ extends CharacterBody3D
 signal defeated(enemy)
 signal health_changed(current: int, maximum: int)
 
-@export var max_health := 70
-@export var move_speed := 3.2
-@export var damage := 12
-@export var aggro_range := 16.0
-@export var attack_range := 1.7
+@export var max_health: int = 70
+@export var move_speed: float = 3.2
+@export var damage: int = 12
+@export var aggro_range: float = 16.0
+@export var attack_range: float = 1.7
 
-var health := 70
+var health: int = 70
 var target: Node3D
-var spawn_position := Vector3.ZERO
-var attack_timer := 0.0
-var stun_timer := 0.0
-var variant := 0
-var _gravity := 22.0
+var spawn_position: Vector3 = Vector3.ZERO
+var attack_timer: float = 0.0
+var stun_timer: float = 0.0
+var variant: int = 0
+var _gravity: float = 22.0
 var _visual: Node3D
 var _health_label: Label3D
 
@@ -27,8 +27,8 @@ func _ready() -> void:
 	_build_body()
 	_update_health_label()
 
-func setup(player: Node3D, enemy_variant: int, asset_path := "") -> void:
-	target = player
+func setup(player_node: Node3D, enemy_variant: int, asset_path: String = "") -> void:
+	target = player_node
 	variant = enemy_variant
 	max_health = 55 + variant * 12
 	health = max_health
@@ -36,8 +36,8 @@ func setup(player: Node3D, enemy_variant: int, asset_path := "") -> void:
 	damage = 9 + variant * 2
 	if is_inside_tree():
 		_recolor_generated()
-		if not String(asset_path).is_empty():
-			apply_asset(String(asset_path))
+		if not asset_path.is_empty():
+			apply_asset(asset_path)
 		_update_health_label()
 
 func _physics_process(delta: float) -> void:
@@ -52,10 +52,10 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		return
 
-	var offset := target.global_position - global_position
-	var distance := offset.length()
+	var offset: Vector3 = target.global_position - global_position
+	var distance: float = offset.length()
 	if distance <= aggro_range:
-		var direction := Vector3(offset.x, 0.0, offset.z).normalized()
+		var direction: Vector3 = Vector3(offset.x, 0.0, offset.z).normalized()
 		if distance > attack_range:
 			velocity.x = move_toward(velocity.x, direction.x * move_speed, 12.0 * delta)
 			velocity.z = move_toward(velocity.z, direction.z * move_speed, 12.0 * delta)
@@ -65,9 +65,9 @@ func _physics_process(delta: float) -> void:
 			velocity.z = move_toward(velocity.z, 0.0, 14.0 * delta)
 			_attack_player()
 	else:
-		var home_offset := spawn_position - global_position
+		var home_offset: Vector3 = spawn_position - global_position
 		if home_offset.length() > 2.0:
-			var home_direction := Vector3(home_offset.x, 0.0, home_offset.z).normalized()
+			var home_direction: Vector3 = Vector3(home_offset.x, 0.0, home_offset.z).normalized()
 			velocity.x = home_direction.x * move_speed * 0.55
 			velocity.z = home_direction.z * move_speed * 0.55
 		else:
@@ -78,75 +78,78 @@ func _physics_process(delta: float) -> void:
 	if global_position.y < -10.0:
 		global_position = spawn_position
 
-func take_damage(amount: int, from_position := Vector3.ZERO) -> void:
+func take_damage(amount: int, from_position: Vector3 = Vector3.ZERO) -> void:
 	if health <= 0:
 		return
 	health = maxi(0, health - amount)
 	stun_timer = 0.24
 	if from_position != Vector3.ZERO:
-		var knockback := (global_position - from_position).normalized()
+		var knockback: Vector3 = (global_position - from_position).normalized()
 		knockback.y = 0.18
 		velocity += knockback * 6.0
 	_update_health_label()
 	health_changed.emit(health, max_health)
 	if is_instance_valid(_visual):
-		var tween := create_tween()
-		tween.tween_property(_visual, "scale", Vector3(1.22, 0.78, 1.22), 0.07)
-		tween.tween_property(_visual, "scale", Vector3.ONE, 0.14)
+		var hit_tween: Tween = create_tween()
+		hit_tween.tween_property(_visual, "scale", Vector3(1.22, 0.78, 1.22), 0.07)
+		hit_tween.tween_property(_visual, "scale", Vector3.ONE, 0.14)
 	if health <= 0:
-		_collision_layer_off()
+		collision_layer = 0
+		collision_mask = 0
 		defeated.emit(self)
-		var tween := create_tween()
-		tween.tween_property(self, "scale", Vector3.ZERO, 0.32)
-		await tween.finished
+		var death_tween: Tween = create_tween()
+		death_tween.tween_property(self, "scale", Vector3.ZERO, 0.32)
+		await death_tween.finished
 		queue_free()
 
 func apply_asset(path: String) -> void:
 	if path.is_empty() or not is_instance_valid(_visual):
 		return
-	var resource := load(path)
-	if resource is PackedScene:
+	var loaded: Resource = load(path)
+	if loaded is Texture2D:
+		var texture: Texture2D = loaded as Texture2D
 		_clear_generated_visual()
-		var instance := resource.instantiate()
-		instance.name = "ImportedEnemy"
-		_visual.add_child(instance)
-		instance.scale = Vector3.ONE * 0.75
-	elif resource is Texture2D:
-		_clear_generated_visual()
-		var sprite := Sprite3D.new()
+		var sprite: Sprite3D = Sprite3D.new()
 		sprite.name = "ImportedEnemySprite"
-		sprite.texture = _enemy_frame(resource)
+		sprite.texture = _enemy_frame(texture)
 		sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		sprite.pixel_size = 0.002
 		sprite.position.y = 1.0
 		sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 		_visual.add_child(sprite)
+	elif loaded is PackedScene:
+		var packed: PackedScene = loaded as PackedScene
+		var scene_instance: Node = packed.instantiate()
+		if scene_instance is Node3D:
+			_clear_generated_visual()
+			var node_3d: Node3D = scene_instance as Node3D
+			node_3d.name = "ImportedEnemy"
+			node_3d.scale = Vector3.ONE * 0.75
+			_visual.add_child(node_3d)
 
 func _enemy_frame(texture: Texture2D) -> Texture2D:
-	var width := texture.get_width()
-	var height := texture.get_height()
+	var width: int = texture.get_width()
+	var height: int = texture.get_height()
 	if width <= 0 or height <= 0:
 		return texture
-	var columns := 2
-	var rows := 2
-	var ratio := float(width) / float(height)
+	var columns: int = 2
+	var rows: int = 2
+	var ratio: float = float(width) / float(height)
 	if ratio > 2.2:
 		columns = 4
 		rows = 1
 	elif ratio < 0.55:
 		columns = 1
 		rows = 4
-	var cell := variant % (columns * rows)
-	var column := cell % columns
-	var row := cell / columns
-	var atlas := AtlasTexture.new()
+	var cell_count: int = columns * rows
+	var cell: int = variant % cell_count
+	var column: int = cell % columns
+	var row: int = cell / columns
+	var atlas: AtlasTexture = AtlasTexture.new()
 	atlas.atlas = texture
-	atlas.region = Rect2(
-		float(column * width) / columns,
-		float(row * height) / rows,
-		float(width) / columns,
-		float(height) / rows
-	)
+	var cell_width: float = float(width) / float(columns)
+	var cell_height: float = float(height) / float(rows)
+	atlas.region = Rect2(float(column) * cell_width, float(row) * cell_height, cell_width, cell_height)
 	return atlas
 
 func _attack_player() -> void:
@@ -154,15 +157,15 @@ func _attack_player() -> void:
 		return
 	attack_timer = 1.15
 	if target.has_method("take_damage"):
-		target.take_damage(damage, global_position)
+		target.call("take_damage", damage, global_position)
 	if is_instance_valid(_visual):
-		var tween := create_tween()
-		tween.tween_property(_visual, "position:z", -0.35, 0.1)
+		var tween: Tween = create_tween()
+		tween.tween_property(_visual, "position:z", -0.35, 0.10)
 		tween.tween_property(_visual, "position:z", 0.0, 0.18)
 
 func _build_body() -> void:
-	var collider := CollisionShape3D.new()
-	var capsule := CapsuleShape3D.new()
+	var collider: CollisionShape3D = CollisionShape3D.new()
+	var capsule: CapsuleShape3D = CapsuleShape3D.new()
 	capsule.radius = 0.5
 	capsule.height = 1.6
 	collider.shape = capsule
@@ -173,39 +176,39 @@ func _build_body() -> void:
 	_visual.name = "Visual"
 	add_child(_visual)
 
-	var body := MeshInstance3D.new()
+	var body: MeshInstance3D = MeshInstance3D.new()
 	body.name = "GeneratedBody"
-	var mesh := CapsuleMesh.new()
-	mesh.radius = 0.48
-	mesh.height = 1.35
-	mesh.material = _enemy_material()
-	body.mesh = mesh
+	var body_mesh: CapsuleMesh = CapsuleMesh.new()
+	body_mesh.radius = 0.48
+	body_mesh.height = 1.35
+	body_mesh.material = _enemy_material()
+	body.mesh = body_mesh
 	body.position.y = 0.82
 	_visual.add_child(body)
 
-	var eye_left := _make_eye(-0.18)
-	var eye_right := _make_eye(0.18)
-	_visual.add_child(eye_left)
-	_visual.add_child(eye_right)
+	var left_eye: MeshInstance3D = _make_eye(-0.18)
+	var right_eye: MeshInstance3D = _make_eye(0.18)
+	_visual.add_child(left_eye)
+	_visual.add_child(right_eye)
 
 	_health_label = Label3D.new()
-	_health_label.position = Vector3(0, 2.15, 0)
+	_health_label.position = Vector3(0.0, 2.15, 0.0)
 	_health_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_health_label.font_size = 34
 	_health_label.outline_size = 7
-	_health_label.modulate = Color(1, 0.3, 0.22)
+	_health_label.modulate = Color(1.0, 0.3, 0.22)
 	add_child(_health_label)
 
 func _make_eye(x_position: float) -> MeshInstance3D:
-	var eye := MeshInstance3D.new()
+	var eye: MeshInstance3D = MeshInstance3D.new()
 	eye.name = "GeneratedEye"
-	var mesh := SphereMesh.new()
+	var mesh: SphereMesh = SphereMesh.new()
 	mesh.radius = 0.07
 	mesh.height = 0.14
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Color(1, 0.9, 0.2)
+	var material: StandardMaterial3D = StandardMaterial3D.new()
+	material.albedo_color = Color(1.0, 0.9, 0.2)
 	material.emission_enabled = true
-	material.emission = Color(1, 0.18, 0.02)
+	material.emission = Color(1.0, 0.18, 0.02)
 	material.emission_energy_multiplier = 2.5
 	mesh.material = material
 	eye.mesh = mesh
@@ -213,34 +216,30 @@ func _make_eye(x_position: float) -> MeshInstance3D:
 	return eye
 
 func _recolor_generated() -> void:
-	for child in _visual.get_children():
+	for child: Node in _visual.get_children():
 		if child is MeshInstance3D and String(child.name) == "GeneratedBody":
-			var mesh_instance := child as MeshInstance3D
-			mesh_instance.mesh.material = _enemy_material()
+			var mesh_instance: MeshInstance3D = child as MeshInstance3D
+			if mesh_instance.mesh != null:
+				mesh_instance.mesh.material = _enemy_material()
 
 func _enemy_material() -> StandardMaterial3D:
-	var palette := [
+	var palette: Array[Color] = [
 		Color(0.38, 0.08, 0.08),
 		Color(0.18, 0.34, 0.09),
-		Color(0.24, 0.08, 0.4),
-		Color(0.05, 0.3, 0.35),
-		Color(0.46, 0.24, 0.04),
-		Color(0.42, 0.04, 0.28)
+		Color(0.24, 0.08, 0.40),
+		Color(0.05, 0.30, 0.35)
 	]
-	var material := StandardMaterial3D.new()
+	var material: StandardMaterial3D = StandardMaterial3D.new()
 	material.albedo_color = palette[variant % palette.size()]
 	material.roughness = 0.75
 	return material
 
 func _clear_generated_visual() -> void:
-	for child in _visual.get_children():
-		if String(child.name).begins_with("Generated") or String(child.name).begins_with("Imported"):
+	for child: Node in _visual.get_children():
+		var child_name: String = String(child.name)
+		if child_name.begins_with("Generated") or child_name.begins_with("Imported"):
 			child.queue_free()
 
 func _update_health_label() -> void:
 	if is_instance_valid(_health_label):
 		_health_label.text = "%d/%d" % [health, max_health]
-
-func _collision_layer_off() -> void:
-	collision_layer = 0
-	collision_mask = 0
