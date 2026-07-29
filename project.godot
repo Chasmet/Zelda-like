@@ -1,22 +1,23 @@
-; Chasmet Zelda-like RPG - Godot 4.7
+; Les Chroniques de Skypiea - véritable RPG 3D mobile
 config_version=5
 
 [application]
-config/name="Les Chroniques de Skypiea"
+config/name="Les Chroniques de Skypiea 3D"
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
-boot_splash/bg_color=Color(0.035, 0.055, 0.09, 1)
+config/icon="res://icon.svg"
+boot_splash/bg_color=Color(0.025, 0.045, 0.075, 1)
 run/max_fps=60
 
 [display/window]
-size/viewport_width=1280
-size/viewport_height=720
+size/viewport_width=1920
+size/viewport_height=1080
 size/window_width_override=1280
 size/window_height_override=720
 size/mode=3
 stretch/mode="canvas_items"
 stretch/aspect="expand"
-handheld/orientation=4
+handheld/orientation=0
 
 [rendering]
 renderer/rendering_method="gl_compatibility"
@@ -25,6 +26,7 @@ textures/default_filters/use_nearest_mipmap_filter=false
 textures/vram_compression/import_etc2_astc=true
 anti_aliasing/quality/msaa_3d=1
 occlusion_culling/use_occlusion_culling=true
+limits/global_shader_variables/buffer_size=65536
 
 [physics]
 common/enable_pause_aware_picking=true
