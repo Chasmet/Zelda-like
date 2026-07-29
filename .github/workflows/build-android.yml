@@ -1,0 +1,46 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, "agent/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  export-android:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Configure Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Export Godot project
+        uses: firebelley/godot-export@v7.0.0
+        with:
+          godot_executable_download_url: https://github.com/godotengine/godot-builds/releases/download/4.7.1-stable/Godot_v4.7.1-stable_linux.x86_64.zip
+          godot_export_templates_download_url: https://github.com/godotengine/godot-builds/releases/download/4.7.1-stable/Godot_v4.7.1-stable_export_templates.tpz
+          relative_project_path: ./
+          archive_output: false
+          export_debug: true
+          use_preset_export_path: true
+          presets_to_export: Android
+          cache: true
+
+      - name: Verify APK exists
+        run: |
+          find build -type f -name "*.apk" -print
+          test -n "$(find build -type f -name '*.apk' -print -quit)"
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: ZeldaLike-Android-debug
+          path: build/**/*.apk
+          if-no-files-found: error
+          retention-days: 30
