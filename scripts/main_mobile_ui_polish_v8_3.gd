@@ -84,9 +84,11 @@ func _build_tutorial_panel(root: Control) -> void:
 
 
 func _hide_tutorial_v83() -> void:
+	tutorial_completed = true
 	if is_instance_valid(tutorial_panel):
 		tutorial_panel.visible = false
 	_show_message("Tutoriel masqué. Appuie sur ? AIDE pour le rouvrir.", 3.2)
+	_save_progress()
 
 
 func _reopen_tutorial_v83() -> void:
