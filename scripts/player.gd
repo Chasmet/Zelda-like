@@ -6,6 +6,8 @@ signal died
 signal attack_requested
 signal interact_requested
 
+const MODEL_ANIMATOR_SCRIPT = preload("res://scripts/procedural_animator.gd")
+
 @export var move_speed: float = 6.0
 @export var sprint_speed: float = 9.0
 @export var acceleration: float = 24.0
@@ -24,6 +26,7 @@ var _camera_pivot: Node3D
 var _camera: Camera3D
 var _visual: Node3D
 var _sword: Node3D
+var _model_animator: ProceduralCharacterAnimator
 var _pitch: float = -0.22
 var _gravity: float = 22.0
 
@@ -41,14 +44,11 @@ func _physics_process(delta: float) -> void:
 	attack_cooldown = maxf(0.0, attack_cooldown - delta)
 	dodge_cooldown = maxf(0.0, dodge_cooldown - delta)
 	invulnerability = maxf(0.0, invulnerability - delta)
-
 	if not is_on_floor():
 		velocity.y -= _gravity * delta
-
 	var input_vector: Vector2 = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	if virtual_move.length() > 0.08:
 		input_vector = virtual_move.limit_length(1.0)
-
 	if can_control:
 		var forward: Vector3 = -_camera.global_transform.basis.z
 		var right: Vector3 = _camera.global_transform.basis.x
@@ -57,10 +57,7 @@ func _physics_process(delta: float) -> void:
 		forward = forward.normalized()
 		right = right.normalized()
 		var direction: Vector3 = (right * input_vector.x + forward * -input_vector.y).normalized()
-		var speed: float = move_speed
-		if Input.is_action_pressed("sprint"):
-			speed = sprint_speed
-
+		var speed: float = sprint_speed if Input.is_action_pressed("sprint") else move_speed
 		if direction.length_squared() > 0.01:
 			velocity.x = move_toward(velocity.x, direction.x * speed, acceleration * delta)
 			velocity.z = move_toward(velocity.z, direction.z * speed, acceleration * delta)
@@ -69,7 +66,6 @@ func _physics_process(delta: float) -> void:
 		else:
 			velocity.x = move_toward(velocity.x, 0.0, acceleration * delta)
 			velocity.z = move_toward(velocity.z, 0.0, acceleration * delta)
-
 		if Input.is_action_just_pressed("jump") and is_on_floor():
 			velocity.y = jump_velocity
 		if Input.is_action_just_pressed("attack"):
@@ -78,8 +74,8 @@ func _physics_process(delta: float) -> void:
 			dodge()
 		if Input.is_action_just_pressed("interact"):
 			interact()
-
 	move_and_slide()
+	_update_model_animation()
 	if global_position.y < -12.0:
 		_respawn()
 
@@ -111,7 +107,9 @@ func attack() -> void:
 		return
 	attack_cooldown = 0.48
 	attack_requested.emit()
-	if is_instance_valid(_sword):
+	if is_instance_valid(_model_animator):
+		_model_animator.play_attack()
+	elif is_instance_valid(_sword):
 		var tween: Tween = create_tween()
 		tween.set_trans(Tween.TRANS_QUAD)
 		tween.set_ease(Tween.EASE_OUT)
@@ -128,7 +126,9 @@ func dodge() -> void:
 		direction = -_visual.global_transform.basis.z
 	direction.y = 0.0
 	velocity += direction.normalized() * 10.0
-	if is_instance_valid(_visual):
+	if is_instance_valid(_model_animator):
+		_model_animator.play_dodge()
+	elif is_instance_valid(_visual):
 		var tween: Tween = create_tween()
 		tween.tween_property(_visual, "rotation:x", TAU, 0.42).as_relative()
 
@@ -146,12 +146,18 @@ func take_damage(amount: int, from_position: Vector3 = Vector3.ZERO) -> void:
 		knockback.y = 0.25
 		velocity += knockback * 7.0
 	health_changed.emit(health, max_health)
-	if is_instance_valid(_visual):
+	if is_instance_valid(_model_animator):
+		_model_animator.play_hit()
+	elif is_instance_valid(_visual):
 		var tween: Tween = create_tween()
 		tween.tween_property(_visual, "scale", Vector3(1.15, 0.82, 1.15), 0.08)
 		tween.tween_property(_visual, "scale", Vector3.ONE, 0.16)
 	if health <= 0:
+		can_control = false
 		died.emit()
+		if is_instance_valid(_model_animator):
+			_model_animator.play_death()
+		await get_tree().create_timer(0.72).timeout
 		_respawn()
 
 func heal(amount: int) -> void:
@@ -167,12 +173,26 @@ func set_spawn(point: Vector3) -> void:
 	spawn_position = point
 
 func apply_asset(path: String) -> void:
-	if path.is_empty() or not is_instance_valid(_visual):
+	if path.is_empty() or not is_instance_valid(_visual) or not ResourceLoader.exists(path):
 		return
 	var loaded: Resource = load(path)
-	if loaded is Texture2D:
+	if loaded is PackedScene:
+		var packed: PackedScene = loaded as PackedScene
+		var scene_instance: Node = packed.instantiate()
+		if scene_instance is Node3D:
+			_clear_generated_visual(true)
+			var animator: ProceduralCharacterAnimator = MODEL_ANIMATOR_SCRIPT.new() as ProceduralCharacterAnimator
+			animator.name = "ImportedHeroModel"
+			_visual.add_child(animator)
+			var node_3d: Node3D = scene_instance as Node3D
+			node_3d.name = "HeroBlenderAsset"
+			node_3d.rotation.y = PI
+			animator.add_child(node_3d)
+			animator.bind_model(node_3d)
+			_model_animator = animator
+	elif loaded is Texture2D:
 		var texture: Texture2D = loaded as Texture2D
-		_clear_generated_visual()
+		_clear_generated_visual(true)
 		var sprite: Sprite3D = Sprite3D.new()
 		sprite.name = "ImportedHeroSprite"
 		sprite.texture = _hero_frame(texture)
@@ -181,15 +201,6 @@ func apply_asset(path: String) -> void:
 		sprite.position.y = 1.05
 		sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 		_visual.add_child(sprite)
-	elif loaded is PackedScene:
-		var packed: PackedScene = loaded as PackedScene
-		var scene_instance: Node = packed.instantiate()
-		if scene_instance is Node3D:
-			_clear_generated_visual()
-			var node_3d: Node3D = scene_instance as Node3D
-			node_3d.name = "ImportedHero"
-			node_3d.scale = Vector3.ONE * 0.8
-			_visual.add_child(node_3d)
 
 func _hero_frame(texture: Texture2D) -> Texture2D:
 	var width: int = texture.get_width()
@@ -218,6 +229,8 @@ func _respawn() -> void:
 	global_position = spawn_position
 	health = max_health
 	health_changed.emit(health, max_health)
+	if is_instance_valid(_model_animator):
+		_model_animator.reset_pose()
 	await get_tree().create_timer(0.35).timeout
 	can_control = true
 
@@ -229,11 +242,9 @@ func _build_body() -> void:
 	collider.shape = capsule
 	collider.position.y = 0.93
 	add_child(collider)
-
 	_visual = Node3D.new()
 	_visual.name = "Visual"
 	add_child(_visual)
-
 	var body: MeshInstance3D = MeshInstance3D.new()
 	body.name = "GeneratedBody"
 	var body_mesh: CapsuleMesh = CapsuleMesh.new()
@@ -243,7 +254,6 @@ func _build_body() -> void:
 	body.mesh = body_mesh
 	body.position.y = 1.0
 	_visual.add_child(body)
-
 	var head: MeshInstance3D = MeshInstance3D.new()
 	head.name = "GeneratedHead"
 	var head_mesh: SphereMesh = SphereMesh.new()
@@ -253,7 +263,6 @@ func _build_body() -> void:
 	head.mesh = head_mesh
 	head.position.y = 1.95
 	_visual.add_child(head)
-
 	_sword = Node3D.new()
 	_sword.name = "SwordPivot"
 	_sword.position = Vector3(0.52, 1.15, 0.0)
@@ -273,27 +282,35 @@ func _build_camera() -> void:
 	_camera_pivot.position = Vector3(0.0, 1.45, 0.0)
 	_camera_pivot.rotation.x = _pitch
 	add_child(_camera_pivot)
-
 	var arm: SpringArm3D = SpringArm3D.new()
 	arm.name = "SpringArm"
 	arm.spring_length = 6.2
 	arm.margin = 0.2
 	arm.collision_mask = 1
 	_camera_pivot.add_child(arm)
-
 	_camera = Camera3D.new()
 	_camera.name = "Camera"
 	_camera.current = true
 	_camera.fov = 68.0
 	arm.add_child(_camera)
 
-func _clear_generated_visual() -> void:
+func _update_model_animation() -> void:
+	if not is_instance_valid(_model_animator):
+		return
+	var horizontal_speed: float = Vector2(velocity.x, velocity.z).length()
+	_model_animator.set_locomotion(horizontal_speed / maxf(sprint_speed, 0.01), not is_on_floor())
+
+func _clear_generated_visual(remove_weapon: bool = false) -> void:
 	for child: Node in _visual.get_children():
-		if child == _sword:
+		if child == _sword and not remove_weapon:
 			continue
 		var child_name: String = String(child.name)
-		if child_name.begins_with("Generated") or child_name.begins_with("Imported"):
+		if child_name.begins_with("Generated") or child_name.begins_with("Imported") or (remove_weapon and child == _sword):
+			_visual.remove_child(child)
 			child.queue_free()
+	if remove_weapon:
+		_sword = null
+	_model_animator = null
 
 func _material(color: Color) -> StandardMaterial3D:
 	var material: StandardMaterial3D = StandardMaterial3D.new()
