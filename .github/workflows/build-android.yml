@@ -47,7 +47,7 @@ jobs:
       - name: Import project and reject script errors
         run: |
           GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
-          "$GODOT" --headless --path . --editor --quit
+          "$GODOT" --headless --path . --editor --import
           set +e
           timeout 50s "$GODOT" --headless --path . --quit-after 25 > /tmp/godot-runtime.log 2>&1
           STATUS=$?
@@ -59,6 +59,22 @@ jobs:
           if [ "$STATUS" -ne 0 ] && [ "$STATUS" -ne 124 ]; then
             exit "$STATUS"
           fi
+
+      - name: Validate the ten-region open world and persistent systems
+        run: |
+          GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
+          set +e
+          timeout 140s "$GODOT" --headless --path . -- --ci-open-world-check > /tmp/godot-open-world.log 2>&1
+          STATUS=$?
+          set -e
+          cat /tmp/godot-open-world.log
+          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|CI OPEN WORLD CHECK:" /tmp/godot-open-world.log; then
+            exit 1
+          fi
+          if [ "$STATUS" -ne 0 ]; then
+            exit "$STATUS"
+          fi
+          grep -q "CI OPEN WORLD CHECK OK" /tmp/godot-open-world.log
 
       - name: Validate a real touchscreen press, movement and walk cycle
         run: |
@@ -122,9 +138,14 @@ jobs:
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_mobile_final.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/procedural_animator.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_walk_animation_check.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_open_world_check.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/world/world_clock_weather.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/game/adventure_progress.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/assets/characters/chk_hero.png'
+          unzip -l "$APK_PATH" | grep -q 'assets/assets/audio/generated/sous_marin.ogg'
           unzip -l "$APK_PATH" | grep -q 'assets/generated_models/hero_knight.glb'
           mkdir -p build/final
-          TARGET="build/final/ZeldaLike-Cheikh-Mobile-V4-debug.apk"
+          TARGET="build/final/ZeldaLike-CHK-Hero-OpenWorld-V5-debug.apk"
           if [ "$(realpath "$APK_PATH")" != "$(realpath -m "$TARGET")" ]; then
             cp "$APK_PATH" "$TARGET"
           fi
@@ -135,9 +156,9 @@ jobs:
       - name: Upload Android APK
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Cheikh-Mobile-V4-Android
+          name: ZeldaLike-CHK-Hero-OpenWorld-V5-Android
           path: |
-            build/final/ZeldaLike-Cheikh-Mobile-V4-debug.apk
+            build/final/ZeldaLike-CHK-Hero-OpenWorld-V5-debug.apk
             build/final/SHA256.txt
           if-no-files-found: error
           retention-days: 30
@@ -145,7 +166,7 @@ jobs:
       - name: Upload visual validation
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Cheikh-Mobile-V4-Validation
+          name: ZeldaLike-CHK-Hero-OpenWorld-V5-Validation
           path: build/validation/HUD-Carte-Portrait.png
           if-no-files-found: error
           retention-days: 30
@@ -153,7 +174,7 @@ jobs:
       - name: Upload generated Blender models
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Cheikh-Mobile-V4-Models
+          name: ZeldaLike-CHK-Hero-OpenWorld-V5-Models
           path: generated_models/*.glb
           if-no-files-found: error
           retention-days: 30

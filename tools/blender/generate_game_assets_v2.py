@@ -81,11 +81,11 @@ def build_sword(parent, steel, leather, gold):
 
 def build_hero_v3():
     base.reset_scene()
-    root = local_empty("CheikhRoyalKnight", (0.0, 0.0, 0.0))
+    root = local_empty("CHKHeroRoyalKnight", (0.0, 0.0, 0.0))
 
-    skin = base.material("CheikhDarkSkin", (0.235, 0.115, 0.062, 1.0), roughness=0.64)
-    skin_light = base.material("CheikhSkinHighlight", (0.36, 0.19, 0.105, 1.0), roughness=0.61)
-    skin_shadow = base.material("CheikhSkinShadow", (0.115, 0.052, 0.027, 1.0), roughness=0.72)
+    skin = base.material("CHKCaramelSkin", (0.34, 0.185, 0.105, 1.0), roughness=0.64)
+    skin_light = base.material("CHKSkinHighlight", (0.44, 0.255, 0.155, 1.0), roughness=0.61)
+    skin_shadow = base.material("CHKSkinShadow", (0.19, 0.088, 0.045, 1.0), roughness=0.72)
     brows = base.material("CheikhBrows", (0.020, 0.014, 0.011, 1.0), roughness=0.92)
     lips = base.material("CheikhLips", (0.22, 0.070, 0.055, 1.0), roughness=0.72)
     iris = base.material("CheikhBrownEyes", (0.20, 0.075, 0.022, 1.0), roughness=0.22)
