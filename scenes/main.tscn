@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/main_hud_final.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/portrait_hud_adjuster.gd" id="2_portrait"]
 [ext_resource type="Script" path="res://scripts/ci_hud_capture.gd" id="3_capture"]
+[ext_resource type="Script" path="res://scripts/ci_walk_animation_check.gd" id="4_walk"]
 
 [node name="SkypieaWorldMapPortraitHUD" type="Node3D"]
 script = ExtResource("1_main")
@@ -12,3 +13,6 @@ script = ExtResource("2_portrait")
 
 [node name="CIHUDCapture" type="Node" parent="."]
 script = ExtResource("3_capture")
+
+[node name="CIWalkAnimationCheck" type="Node" parent="."]
+script = ExtResource("4_walk")
