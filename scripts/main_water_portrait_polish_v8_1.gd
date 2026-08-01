@@ -103,6 +103,9 @@ func _restore_critical_hud_v8() -> void:
 
 func _process(delta: float) -> void:
 	super._process(delta)
+	if is_instance_valid(portrait_model):
+		# Le modèle du portrait doit regarder le joueur, pas lui montrer le dos.
+		portrait_model.rotation.y = sin(Time.get_ticks_msec() * 0.0007) * 0.10
 	if is_instance_valid(hero_status_label) and is_instance_valid(player):
 		hero_status_label.text = "CHK HERO • %d/%d" % [player.health, player.max_health]
 
