@@ -1,6 +1,7 @@
 extends Node
 
 const MAX_WAIT_SECONDS := 135.0
+const EXPECTED_BRIDGES := 11
 
 
 func _ready() -> void:
@@ -32,8 +33,8 @@ func _run_check() -> void:
 	if int(state.get("authored_detail_instances", 0)) < 700:
 		_fail("le monde reste trop vide : moins de 700 détails déterministes : %s" % state, 63)
 		return
-	if int(state.get("bridges", 0)) != 9:
-		_fail("les neuf liaisons n'ont pas toutes été reconstruites : %s" % state, 64)
+	if int(state.get("bridges", 0)) != EXPECTED_BRIDGES:
+		_fail("les onze liaisons réelles de la carte n'ont pas toutes été reconstruites : %s" % state, 64)
 		return
 	if int(state.get("atmospheres", 0)) != 5:
 		_fail("les cinq biomes météo n'ont pas leur atmosphère locale : %s" % state, 65)
@@ -65,7 +66,7 @@ func _run_check() -> void:
 		_fail("l'aide permanente masque encore le bas de l'écran", 72)
 		return
 
-	print("CI VISUAL QUALITY CHECK OK: shaders=10 détails=%d ponts=9 atmosphères=5 caméra=%.1f HUD=compact" % [int(state.get("authored_detail_instances", 0)), float(state.get("camera_distance", 0.0))])
+	print("CI VISUAL QUALITY CHECK OK: shaders=10 détails=%d ponts=%d atmosphères=5 caméra=%.1f HUD=compact" % [int(state.get("authored_detail_instances", 0)), EXPECTED_BRIDGES, float(state.get("camera_distance", 0.0))])
 	if game.has_method("_shutdown_audio"):
 		game.call("_shutdown_audio")
 	await get_tree().create_timer(0.25).timeout
