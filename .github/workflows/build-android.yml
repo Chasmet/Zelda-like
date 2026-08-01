@@ -10,7 +10,7 @@ on:
 jobs:
   export-android:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 50
     permissions:
       contents: read
 
@@ -49,11 +49,11 @@ jobs:
           GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
           "$GODOT" --headless --path . --editor --import
           set +e
-          timeout 50s "$GODOT" --headless --path . --quit-after 25 > /tmp/godot-runtime.log 2>&1
+          timeout 55s "$GODOT" --headless --path . --quit-after 25 > /tmp/godot-runtime.log 2>&1
           STATUS=$?
           set -e
           cat /tmp/godot-runtime.log
-          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|ERROR:.*main_mobile_final|ERROR:.*procedural_animator" /tmp/godot-runtime.log; then
+          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|ERROR:.*main_mobile_final|ERROR:.*main_visual_overhaul_v6|ERROR:.*procedural_animator" /tmp/godot-runtime.log; then
             exit 1
           fi
           if [ "$STATUS" -ne 0 ] && [ "$STATUS" -ne 124 ]; then
@@ -64,7 +64,7 @@ jobs:
         run: |
           GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
           set +e
-          timeout 140s "$GODOT" --headless --path . -- --ci-open-world-check > /tmp/godot-open-world.log 2>&1
+          timeout 145s "$GODOT" --headless --path . -- --ci-open-world-check > /tmp/godot-open-world.log 2>&1
           STATUS=$?
           set -e
           cat /tmp/godot-open-world.log
@@ -75,6 +75,22 @@ jobs:
             exit "$STATUS"
           fi
           grep -q "CI OPEN WORLD CHECK OK" /tmp/godot-open-world.log
+
+      - name: Validate V6 terrain, authored details, camera and compact HUD
+        run: |
+          GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
+          set +e
+          timeout 150s "$GODOT" --headless --path . -- --ci-visual-quality-check > /tmp/godot-visual-quality.log 2>&1
+          STATUS=$?
+          set -e
+          cat /tmp/godot-visual-quality.log
+          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|CI VISUAL QUALITY CHECK:" /tmp/godot-visual-quality.log; then
+            exit 1
+          fi
+          if [ "$STATUS" -ne 0 ]; then
+            exit "$STATUS"
+          fi
+          grep -q "CI VISUAL QUALITY CHECK OK" /tmp/godot-visual-quality.log
 
       - name: Validate a real touchscreen press, movement and walk cycle
         run: |
@@ -99,7 +115,7 @@ jobs:
           mkdir -p build/validation
           rm -f build/validation/HUD-Carte-Portrait.png
           set +e
-          timeout 125s xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path . -- --ci-hud-shot > /tmp/godot-visual.log 2>&1
+          timeout 135s xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path . -- --ci-hud-shot > /tmp/godot-visual.log 2>&1
           STATUS=$?
           set -e
           cat /tmp/godot-visual.log
@@ -136,16 +152,18 @@ jobs:
           unzip -l "$APK_PATH" | grep -q 'lib/arm64-v8a/libgodot_android.so'
           unzip -l "$APK_PATH" | grep -q 'assets/carte monde.png'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_mobile_final.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_visual_overhaul_v6.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/procedural_animator.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_walk_animation_check.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_open_world_check.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_visual_quality_check.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/world/world_clock_weather.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/game/adventure_progress.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/assets/characters/chk_hero.png'
           unzip -l "$APK_PATH" | grep -q 'assets/assets/audio/generated/sous_marin.ogg'
           unzip -l "$APK_PATH" | grep -q 'assets/generated_models/hero_knight.glb'
           mkdir -p build/final
-          TARGET="build/final/ZeldaLike-CHK-Hero-OpenWorld-V5-debug.apk"
+          TARGET="build/final/ZeldaLike-CHK-Hero-OpenWorld-V6-debug.apk"
           if [ "$(realpath "$APK_PATH")" != "$(realpath -m "$TARGET")" ]; then
             cp "$APK_PATH" "$TARGET"
           fi
@@ -156,9 +174,9 @@ jobs:
       - name: Upload Android APK
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-CHK-Hero-OpenWorld-V5-Android
+          name: ZeldaLike-CHK-Hero-OpenWorld-V6-Android
           path: |
-            build/final/ZeldaLike-CHK-Hero-OpenWorld-V5-debug.apk
+            build/final/ZeldaLike-CHK-Hero-OpenWorld-V6-debug.apk
             build/final/SHA256.txt
           if-no-files-found: error
           retention-days: 30
@@ -166,7 +184,7 @@ jobs:
       - name: Upload visual validation
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-CHK-Hero-OpenWorld-V5-Validation
+          name: ZeldaLike-CHK-Hero-OpenWorld-V6-Validation
           path: build/validation/HUD-Carte-Portrait.png
           if-no-files-found: error
           retention-days: 30
@@ -174,7 +192,7 @@ jobs:
       - name: Upload generated Blender models
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-CHK-Hero-OpenWorld-V5-Models
+          name: ZeldaLike-CHK-Hero-OpenWorld-V6-Models
           path: generated_models/*.glb
           if-no-files-found: error
           retention-days: 30
