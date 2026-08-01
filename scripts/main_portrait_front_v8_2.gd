@@ -5,6 +5,7 @@ extends "res://scripts/main_water_portrait_polish_v8_1.gd"
 # CHK Hero en chevalier de face et reste lisible sur les petits écrans Android.
 
 const V82_VERSION: String = "0.8.2-portrait-face"
+var portrait_front_applied: bool = false
 
 
 func _restore_critical_hud_v8() -> void:
@@ -15,11 +16,13 @@ func _restore_critical_hud_v8() -> void:
 		v8_portrait_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		v8_portrait_texture.visible = true
 		v8_portrait_texture.modulate = Color.WHITE
+		portrait_front_applied = v8_portrait_texture.texture == CHK_HERO_PORTRAIT
 
 
 func get_portrait_front_debug() -> Dictionary:
 	return {
 		"version": V82_VERSION,
-		"portrait_texture": v8_portrait_texture.texture.resource_path if is_instance_valid(v8_portrait_texture) and is_instance_valid(v8_portrait_texture.texture) else "",
+		"portrait_front_applied": portrait_front_applied,
+		"portrait_is_official": is_instance_valid(v8_portrait_texture) and v8_portrait_texture.texture == CHK_HERO_PORTRAIT,
 		"portrait_visible": v8_portrait_texture.visible if is_instance_valid(v8_portrait_texture) else false
 	}
