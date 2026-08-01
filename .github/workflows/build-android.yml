@@ -53,7 +53,7 @@ jobs:
           STATUS=$?
           set -e
           cat /tmp/godot-runtime.log
-          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|ERROR:.*main_hud_final" /tmp/godot-runtime.log; then
+          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|ERROR:.*main_hud_final|ERROR:.*ci_hud_capture" /tmp/godot-runtime.log; then
             echo "Godot runtime error detected"
             exit 1
           fi
@@ -62,24 +62,26 @@ jobs:
             exit "$STATUS"
           fi
 
-      - name: Render visual HUD validation
+      - name: Render fully loaded HUD validation
         run: |
           GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
           mkdir -p build/validation
+          rm -f build/validation/HUD-Carte-Portrait.png
           set +e
-          timeout 55s xvfb-run -a "$GODOT" --path . --write-movie build/validation/gameplay.avi --fixed-fps 30 --quit-after 480 > /tmp/godot-visual.log 2>&1
+          timeout 125s xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path . -- --ci-hud-shot > /tmp/godot-visual.log 2>&1
           STATUS=$?
           set -e
           cat /tmp/godot-visual.log
-          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed" /tmp/godot-visual.log; then
+          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|CI HUD capture failed|CI HUD capture timed out" /tmp/godot-visual.log; then
             exit 1
           fi
-          test -s build/validation/gameplay.avi
-          ffmpeg -y -sseof -1 -i build/validation/gameplay.avi -frames:v 1 build/validation/HUD-Carte-Portrait.png
-          test -s build/validation/HUD-Carte-Portrait.png
-          if [ "$STATUS" -ne 0 ] && [ "$STATUS" -ne 124 ]; then
+          if [ "$STATUS" -ne 0 ]; then
+            echo "HUD visual test exited with status $STATUS"
             exit "$STATUS"
           fi
+          grep -q "CI HUD capture saved" /tmp/godot-visual.log
+          test -s build/validation/HUD-Carte-Portrait.png
+          file build/validation/HUD-Carte-Portrait.png
 
       - name: Configure Android SDK
         uses: android-actions/setup-android@v3
@@ -88,7 +90,7 @@ jobs:
         uses: firebelley/godot-export@v7.0.0
         with:
           godot_executable_download_url: https://github.com/godotengine/godot-builds/releases/download/4.7.1-stable/Godot_v4.7.1-stable_linux.x86_64.zip
-          godot_export_templates_download_url: https://github.com/godotengine/godot-builds/releases/download/4.7.1-stable/Godot_v4.7.1-stable_export_templates.tpz
+          godot_export_templates_download_url: https://github.com/godotengine/godot-builds/releases/download/4.7.1-stable/Godot_v4.7.1-stable_linux.x86_64.zip
           relative_project_path: ./
           archive_output: false
           export_debug: true
@@ -106,6 +108,7 @@ jobs:
           unzip -l "$APK_PATH" | grep -q 'lib/arm64-v8a/libgodot_android.so'
           unzip -l "$APK_PATH" | grep -q 'assets/carte monde.png'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_hud_final.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_hud_capture.gdc'
           mkdir -p build/final
           TARGET="build/final/ZeldaLike-Carte-Portrait-debug.apk"
           if [ "$(realpath "$APK_PATH")" != "$(realpath -m "$TARGET")" ]; then
