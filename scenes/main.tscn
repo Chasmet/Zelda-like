@@ -1,10 +1,11 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
-[ext_resource type="Script" path="res://scripts/main_mobile_final.gd" id="1_main"]
+[ext_resource type="Script" path="res://scripts/main_visual_overhaul_v6.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/portrait_hud_adjuster.gd" id="2_portrait"]
 [ext_resource type="Script" path="res://scripts/ci_hud_capture.gd" id="3_capture"]
 [ext_resource type="Script" path="res://scripts/ci_walk_animation_check.gd" id="4_walk"]
 [ext_resource type="Script" path="res://scripts/ci_open_world_check.gd" id="5_world"]
+[ext_resource type="Script" path="res://scripts/ci_visual_quality_check.gd" id="6_visual"]
 
 [node name="SkypieaMobileFinal" type="Node3D"]
 script = ExtResource("1_main")
@@ -20,3 +21,6 @@ script = ExtResource("4_walk")
 
 [node name="CIOpenWorldCheck" type="Node" parent="."]
 script = ExtResource("5_world")
+
+[node name="CIVisualQualityCheck" type="Node" parent="."]
+script = ExtResource("6_visual")
