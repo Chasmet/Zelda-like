@@ -14,12 +14,11 @@ func _adjust_portrait() -> void:
 		if not is_instance_valid(portrait_model) or not is_instance_valid(portrait_viewport):
 			continue
 
-		portrait_model.rotation = Vector3(0.0, 0.0, 0.0)
 		portrait_model.scale = Vector3.ONE * 1.12
 		portrait_model.position = Vector3(0.0, -0.05, 0.0)
 
 		var portrait_camera: Camera3D = portrait_viewport.get_camera_3d()
 		if is_instance_valid(portrait_camera):
-			portrait_camera.position = Vector3(0.0, 1.28, 2.95)
+			portrait_camera.position = Vector3(0.0, 1.28, -2.95)
 			portrait_camera.look_at(Vector3(0.0, 1.22, 0.0), Vector3.UP)
 		return
