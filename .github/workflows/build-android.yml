@@ -116,15 +116,16 @@ jobs:
           APK_PATH="$(find build -type f -name '*.apk' -print -quit)"
           test -n "$APK_PATH"
           unzip -t "$APK_PATH" >/dev/null
-          unzip -l "$APK_PATH" | grep -q 'classes.dex'
-          unzip -l "$APK_PATH" | grep -q 'lib/arm64-v8a/libgodot_android.so'
-          unzip -l "$APK_PATH" | grep -q 'assets/carte monde.png'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_overhaul_v5.gdc'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_mobile_final.gdc'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/procedural_animator.gdc'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_walk_animation_check.gdc'
-          unzip -l "$APK_PATH" | grep -q 'assets/generated_models/hero_knight.glb'
-          unzip -l "$APK_PATH" | grep -q 'assets/assets/cheikh_portrait.b64'
+          unzip -l "$APK_PATH" > /tmp/apk-listing.txt
+          grep -F 'classes.dex' /tmp/apk-listing.txt
+          grep -F 'lib/arm64-v8a/libgodot_android.so' /tmp/apk-listing.txt
+          grep -F 'assets/carte monde.png' /tmp/apk-listing.txt
+          grep -F 'assets/scripts/main_overhaul_v5.gdc' /tmp/apk-listing.txt
+          grep -F 'assets/scripts/main_mobile_final.gdc' /tmp/apk-listing.txt
+          grep -F 'assets/scripts/procedural_animator.gdc' /tmp/apk-listing.txt
+          grep -F 'assets/scripts/ci_walk_animation_check.gdc' /tmp/apk-listing.txt
+          grep -F 'assets/generated_models/hero_knight.glb' /tmp/apk-listing.txt
+          grep -F 'assets/assets/cheikh_portrait.b64' /tmp/apk-listing.txt
           mkdir -p build/final
           TARGET="build/final/ZeldaLike-World-Overhaul-V5-debug.apk"
           if [ "$(realpath "$APK_PATH")" != "$(realpath -m "$TARGET")" ]; then
