@@ -886,8 +886,13 @@ func _decorate_coastal_landmarks(zone_index):
 	_add_water_patch(zone_index, Vector3(0.0, -0.55, 18.0), Vector2(41.0, 8.0), Color(0.02, 0.48, 0.70, 0.88))
 	for dock_x in [-12.0, 0.0, 12.0]:
 		_add_path(zone_index, Vector3(dock_x, 0.40, 16.0), Vector3(3.0, 0.18, 12.0), 0.0)
+	# Deux rangées latérales conservent une large allée centrale entre le point
+	# d'apparition de CHK Hero et le village. L'ancienne rangée plaçait Étal_01
+	# directement dans l'axe du joystick et bloquait le héros dès le départ.
 	for market_index in range(6):
-		var market_offset = Vector3(-10.0 + float(market_index % 3) * 10.0, 0.0, 1.0 + float(market_index / 3) * 6.0)
+		var side = -1.0 if market_index % 2 == 0 else 1.0
+		var row = float(market_index / 2)
+		var market_offset = Vector3(side * 2.4, 0.0, 1.0 + row * 6.0)
 		_add_market_stall(zone_index, market_offset, market_index)
 	_place_model(BOAT_MODEL, zone_index, Vector3(-12.0, 0.60, 19.0), Vector3.ONE * 0.86, Vector3(0.0, 0.2, 0.0))
 	_place_model(BOAT_MODEL, zone_index, Vector3(12.0, 0.60, 19.0), Vector3.ONE * 1.05, Vector3(0.0, -0.25, 0.0))
