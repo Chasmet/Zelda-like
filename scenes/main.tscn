@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/main_critical_fixes_v8.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/portrait_hud_adjuster.gd" id="2_portrait"]
@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/ci_open_world_check.gd" id="5_world"]
 [ext_resource type="Script" path="res://scripts/ci_visual_quality_check.gd" id="6_visual"]
 [ext_resource type="Script" path="res://scripts/ci_critical_bug_check.gd" id="7_critical"]
+[ext_resource type="Script" path="res://scripts/ci_water_capture.gd" id="8_water_capture"]
 
 [node name="SkypieaMobileFinal" type="Node3D"]
 script = ExtResource("1_main")
@@ -28,3 +29,6 @@ script = ExtResource("6_visual")
 
 [node name="CICriticalBugCheck" type="Node" parent="."]
 script = ExtResource("7_critical")
+
+[node name="CIWaterCapture" type="Node" parent="."]
+script = ExtResource("8_water_capture")
