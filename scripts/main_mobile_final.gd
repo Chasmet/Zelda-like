@@ -62,7 +62,6 @@ func _build_terrain(zone_index):
 	visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	body.add_child(visual)
 
-	# One vertex per metre avoids unsupported non-uniform collision scaling.
 	var collision_width: int = int(round(TERRAIN_SIZE.x)) + 1
 	var collision_depth: int = int(round(TERRAIN_SIZE.y)) + 1
 	var half_width: float = float(collision_width - 1) * 0.5
@@ -87,6 +86,38 @@ func _build_terrain(zone_index):
 	collision.shape = height_shape
 	body.add_child(collision)
 	add_child(body)
+
+
+# The old bridges crossed the middle of each island at y=1.35, above the
+# terrain. Their box colliders cut through the spawn area like invisible walls.
+# Keep the bridge floor near sea level so it only becomes walkable after the
+# island shore descends, while remaining safely above the ocean.
+func _build_bridge(zone_a, zone_b, width, color):
+	var start: Vector3 = ZONE_CENTERS[zone_a]
+	var finish: Vector3 = ZONE_CENTERS[zone_b]
+	var delta: Vector3 = finish - start
+	var horizontal := Vector3(delta.x, 0.0, delta.z)
+	var length: float = horizontal.length()
+	if length < 1.0:
+		return
+
+	var midpoint: Vector3 = (start + finish) * 0.5
+	midpoint.y = 0.12
+	var bridge = _static_box(
+		"Route_%02d_%02d" % [zone_a + 1, zone_b + 1],
+		Vector3(width, 0.34, length),
+		midpoint,
+		color
+	)
+	bridge.rotation.y = atan2(horizontal.x, horizontal.z)
+
+	var rail_y: float = midpoint.y + 0.42
+	var left_offset: Vector3 = Vector3(-width * 0.48, 0.0, 0.0).rotated(Vector3.UP, bridge.rotation.y)
+	var right_offset: Vector3 = Vector3(width * 0.48, 0.0, 0.0).rotated(Vector3.UP, bridge.rotation.y)
+	var left_rail = _visual_box("Rail", Vector3(0.20, 0.65, length), Vector3(midpoint.x, rail_y, midpoint.z) + left_offset, Color(0.24, 0.16, 0.08))
+	left_rail.rotation.y = bridge.rotation.y
+	var right_rail = _visual_box("Rail", Vector3(0.20, 0.65, length), Vector3(midpoint.x, rail_y, midpoint.z) + right_offset, Color(0.24, 0.16, 0.08))
+	right_rail.rotation.y = bridge.rotation.y
 
 
 func _build_joystick(root):
