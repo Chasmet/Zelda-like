@@ -10,7 +10,7 @@ on:
 jobs:
   export-android:
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 60
     permissions:
       contents: read
 
@@ -53,7 +53,7 @@ jobs:
           STATUS=$?
           set -e
           cat /tmp/godot-runtime.log
-          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|ERROR:.*main_mobile_final|ERROR:.*main_visual_overhaul_v6|ERROR:.*main_coastal_presentation_v7|ERROR:.*main_critical_fixes_v8|ERROR:.*procedural_animator" /tmp/godot-runtime.log; then
+          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|ERROR:.*main_mobile_final|ERROR:.*main_visual_overhaul_v6|ERROR:.*main_coastal_presentation_v7|ERROR:.*main_critical_fixes_v8|ERROR:.*main_water_portrait_polish_v8_1|ERROR:.*main_portrait_front_v8_2|ERROR:.*main_mobile_ui_polish_v8_3|ERROR:.*procedural_animator" /tmp/godot-runtime.log; then
             exit 1
           fi
           if [ "$STATUS" -ne 0 ] && [ "$STATUS" -ne 124 ]; then
@@ -107,6 +107,22 @@ jobs:
             exit "$STATUS"
           fi
           grep -q "CI CRITICAL BUG CHECK OK" /tmp/godot-critical.log
+
+      - name: Validate V8.3 compact tutorial and mobile safe areas
+        run: |
+          GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
+          set +e
+          timeout 155s xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path . -- --ci-mobile-ui-check > /tmp/godot-mobile-ui.log 2>&1
+          STATUS=$?
+          set -e
+          cat /tmp/godot-mobile-ui.log
+          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|CI MOBILE UI CHECK:" /tmp/godot-mobile-ui.log; then
+            exit 1
+          fi
+          if [ "$STATUS" -ne 0 ]; then
+            exit "$STATUS"
+          fi
+          grep -q "CI MOBILE UI CHECK OK" /tmp/godot-mobile-ui.log
 
       - name: Validate a real touchscreen press, movement and walk cycle
         run: |
@@ -162,6 +178,24 @@ jobs:
           grep -q "CI WATER capture saved" /tmp/godot-water-shot.log
           test -s build/validation/Eau-Littoral-Nage.png
 
+      - name: Capture the compact tutorial and mobile controls
+        run: |
+          GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
+          rm -f build/validation/Interface-Mobile-Tutoriel.png
+          set +e
+          timeout 145s xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path . -- --ci-mobile-ui-shot > /tmp/godot-mobile-ui-shot.log 2>&1
+          STATUS=$?
+          set -e
+          cat /tmp/godot-mobile-ui-shot.log
+          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|CI MOBILE UI capture failed" /tmp/godot-mobile-ui-shot.log; then
+            exit 1
+          fi
+          if [ "$STATUS" -ne 0 ]; then
+            exit "$STATUS"
+          fi
+          grep -q "CI MOBILE UI capture saved" /tmp/godot-mobile-ui-shot.log
+          test -s build/validation/Interface-Mobile-Tutoriel.png
+
       - name: Configure Android SDK
         uses: android-actions/setup-android@v3
 
@@ -189,19 +223,24 @@ jobs:
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_visual_overhaul_v6.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_coastal_presentation_v7.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_critical_fixes_v8.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_water_portrait_polish_v8_1.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_portrait_front_v8_2.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_mobile_ui_polish_v8_3.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/procedural_animator.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_walk_animation_check.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_open_world_check.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_visual_quality_check.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_critical_bug_check.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_water_capture.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_mobile_ui_check.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_mobile_ui_capture.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/world/world_clock_weather.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/game/adventure_progress.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/assets/characters/chk_hero.png'
           unzip -l "$APK_PATH" | grep -q 'assets/assets/audio/generated/sous_marin.ogg'
           unzip -l "$APK_PATH" | grep -q 'assets/generated_models/hero_knight.glb'
           mkdir -p build/final
-          TARGET="build/final/ZeldaLike-CHK-Hero-OpenWorld-V8-debug.apk"
+          TARGET="build/final/ZeldaLike-CHK-Hero-OpenWorld-V8-3-debug.apk"
           if [ "$(realpath "$APK_PATH")" != "$(realpath -m "$TARGET")" ]; then
             cp "$APK_PATH" "$TARGET"
           fi
@@ -212,9 +251,9 @@ jobs:
       - name: Upload Android APK
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-CHK-Hero-OpenWorld-V8-Android
+          name: ZeldaLike-CHK-Hero-OpenWorld-V8-3-Android
           path: |
-            build/final/ZeldaLike-CHK-Hero-OpenWorld-V8-debug.apk
+            build/final/ZeldaLike-CHK-Hero-OpenWorld-V8-3-debug.apk
             build/final/SHA256.txt
           if-no-files-found: error
           retention-days: 30
@@ -222,7 +261,7 @@ jobs:
       - name: Upload visual validation
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-CHK-Hero-OpenWorld-V8-Validation
+          name: ZeldaLike-CHK-Hero-OpenWorld-V8-3-Validation
           path: build/validation/*.png
           if-no-files-found: error
           retention-days: 30
@@ -230,7 +269,7 @@ jobs:
       - name: Upload generated Blender models
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-CHK-Hero-OpenWorld-V8-Models
+          name: ZeldaLike-CHK-Hero-OpenWorld-V8-3-Models
           path: generated_models/*.glb
           if-no-files-found: error
           retention-days: 30
