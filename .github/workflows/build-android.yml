@@ -3,19 +3,35 @@ name: Build Android APK
 on:
   workflow_dispatch:
   push:
-    branches: [main, "agent/**"]
+    branches: [main, "agent/**", "work/**"]
   pull_request:
     branches: [main]
 
 jobs:
   export-android:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     permissions:
       contents: read
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repository and large assets
         uses: actions/checkout@v5
+        with:
+          lfs: true
+
+      - name: Install Blender
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y blender
+          blender --version
+
+      - name: Generate optimised 3D models
+        run: |
+          rm -rf generated_models
+          blender --background --python tools/blender/generate_game_assets.py -- --output generated_models
+          find generated_models -maxdepth 1 -type f -name '*.glb' -printf '%f  %s bytes\n' | sort
+          test "$(find generated_models -maxdepth 1 -type f -name '*.glb' | wc -l)" -eq 12
 
       - name: Configure Android SDK
         uses: android-actions/setup-android@v3
@@ -36,11 +52,20 @@ jobs:
         run: |
           find build -type f -name "*.apk" -print
           test -n "$(find build -type f -name '*.apk' -print -quit)"
+          unzip -t build/ZeldaLike-debug.apk >/dev/null
 
       - name: Upload Android APK
         uses: actions/upload-artifact@v7
         with:
           name: ZeldaLike-Android-debug
           path: build/**/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload generated Blender models
+        uses: actions/upload-artifact@v7
+        with:
+          name: ZeldaLike-generated-3D-models
+          path: generated_models/*.glb
           if-no-files-found: error
           retention-days: 30
