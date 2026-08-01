@@ -144,6 +144,24 @@ jobs:
           grep -q "CI HUD capture saved" /tmp/godot-visual.log
           test -s build/validation/HUD-Carte-Portrait.png
 
+      - name: Capture the rebuilt coastline and water
+        run: |
+          GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
+          rm -f build/validation/Eau-Littoral-Nage.png
+          set +e
+          timeout 145s xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path . -- --ci-water-shot > /tmp/godot-water-shot.log 2>&1
+          STATUS=$?
+          set -e
+          cat /tmp/godot-water-shot.log
+          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|CI WATER capture failed" /tmp/godot-water-shot.log; then
+            exit 1
+          fi
+          if [ "$STATUS" -ne 0 ]; then
+            exit "$STATUS"
+          fi
+          grep -q "CI WATER capture saved" /tmp/godot-water-shot.log
+          test -s build/validation/Eau-Littoral-Nage.png
+
       - name: Configure Android SDK
         uses: android-actions/setup-android@v3
 
@@ -176,6 +194,7 @@ jobs:
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_open_world_check.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_visual_quality_check.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_critical_bug_check.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_water_capture.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/world/world_clock_weather.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/game/adventure_progress.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/assets/characters/chk_hero.png'
@@ -204,7 +223,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ZeldaLike-CHK-Hero-OpenWorld-V8-Validation
-          path: build/validation/HUD-Carte-Portrait.png
+          path: build/validation/*.png
           if-no-files-found: error
           retention-days: 30
 
