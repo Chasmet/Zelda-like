@@ -25,9 +25,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y blender python3-numpy xvfb ffmpeg
           blender --version
-          blender --background --python-expr "import numpy; print('NumPy', numpy.__version__)"
 
-      - name: Generate detailed 3D models with Blender
+      - name: Generate the articulated Cheikh hero and game models
         run: |
           rm -rf generated_models
           blender --background --python tools/blender/generate_game_assets_v2.py -- --output generated_models
@@ -37,32 +36,48 @@ jobs:
 
       - name: Download Godot for runtime validation
         run: |
-          curl -L --fail --retry 3 \
+          rm -rf /tmp/godot /tmp/godot.zip
+          curl -L --fail --retry 8 --retry-all-errors --retry-delay 5 --connect-timeout 20 \
             https://github.com/godotengine/godot-builds/releases/download/4.7.1-stable/Godot_v4.7.1-stable_linux.x86_64.zip \
             -o /tmp/godot.zip
           unzip -q /tmp/godot.zip -d /tmp/godot
           chmod +x /tmp/godot/Godot_v4.7.1-stable_linux.x86_64
           /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --version
 
-      - name: Import project and test startup
+      - name: Import project and reject script errors
         run: |
           GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
           "$GODOT" --headless --path . --editor --quit
           set +e
-          timeout 45s "$GODOT" --headless --path . --quit-after 20 > /tmp/godot-runtime.log 2>&1
+          timeout 50s "$GODOT" --headless --path . --quit-after 25 > /tmp/godot-runtime.log 2>&1
           STATUS=$?
           set -e
           cat /tmp/godot-runtime.log
-          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|ERROR:.*main_hud_final|ERROR:.*ci_hud_capture" /tmp/godot-runtime.log; then
-            echo "Godot runtime error detected"
+          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|ERROR:.*main_mobile_final|ERROR:.*procedural_animator" /tmp/godot-runtime.log; then
             exit 1
           fi
           if [ "$STATUS" -ne 0 ] && [ "$STATUS" -ne 124 ]; then
-            echo "Godot exited unexpectedly with status $STATUS"
             exit "$STATUS"
           fi
 
-      - name: Render fully loaded HUD validation
+      - name: Validate a real touchscreen press, movement and walk cycle
+        run: |
+          GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
+          set +e
+          timeout 135s xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path . -- --ci-walk-check > /tmp/godot-touch.log 2>&1
+          STATUS=$?
+          set -e
+          cat /tmp/godot-touch.log
+          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|CI TOUCH CHECK:" /tmp/godot-touch.log; then
+            exit 1
+          fi
+          if [ "$STATUS" -ne 0 ]; then
+            echo "Touch movement test exited with status $STATUS"
+            exit "$STATUS"
+          fi
+          grep -q "CI TOUCH CHECK OK" /tmp/godot-touch.log
+
+      - name: Capture the fully loaded interface
         run: |
           GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
           mkdir -p build/validation
@@ -76,12 +91,10 @@ jobs:
             exit 1
           fi
           if [ "$STATUS" -ne 0 ]; then
-            echo "HUD visual test exited with status $STATUS"
             exit "$STATUS"
           fi
           grep -q "CI HUD capture saved" /tmp/godot-visual.log
           test -s build/validation/HUD-Carte-Portrait.png
-          file build/validation/HUD-Carte-Portrait.png
 
       - name: Configure Android SDK
         uses: android-actions/setup-android@v3
@@ -102,15 +115,16 @@ jobs:
         run: |
           APK_PATH="$(find build -type f -name '*.apk' -print -quit)"
           test -n "$APK_PATH"
-          echo "Found APK at $APK_PATH"
           unzip -t "$APK_PATH" >/dev/null
           unzip -l "$APK_PATH" | grep -q 'classes.dex'
           unzip -l "$APK_PATH" | grep -q 'lib/arm64-v8a/libgodot_android.so'
           unzip -l "$APK_PATH" | grep -q 'assets/carte monde.png'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_hud_final.gdc'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_hud_capture.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_mobile_final.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/procedural_animator.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_walk_animation_check.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/generated_models/hero_knight.glb'
           mkdir -p build/final
-          TARGET="build/final/ZeldaLike-Carte-Portrait-debug.apk"
+          TARGET="build/final/ZeldaLike-Cheikh-Mobile-V4-debug.apk"
           if [ "$(realpath "$APK_PATH")" != "$(realpath -m "$TARGET")" ]; then
             cp "$APK_PATH" "$TARGET"
           fi
@@ -121,9 +135,9 @@ jobs:
       - name: Upload Android APK
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Carte-Portrait-Android
+          name: ZeldaLike-Cheikh-Mobile-V4-Android
           path: |
-            build/final/ZeldaLike-Carte-Portrait-debug.apk
+            build/final/ZeldaLike-Cheikh-Mobile-V4-debug.apk
             build/final/SHA256.txt
           if-no-files-found: error
           retention-days: 30
@@ -131,7 +145,7 @@ jobs:
       - name: Upload visual validation
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-HUD-Visual-Validation
+          name: ZeldaLike-Cheikh-Mobile-V4-Validation
           path: build/validation/HUD-Carte-Portrait.png
           if-no-files-found: error
           retention-days: 30
@@ -139,7 +153,7 @@ jobs:
       - name: Upload generated Blender models
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-detailed-3D-models
+          name: ZeldaLike-Cheikh-Mobile-V4-Models
           path: generated_models/*.glb
           if-no-files-found: error
           retention-days: 30
