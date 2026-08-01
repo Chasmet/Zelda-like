@@ -20,10 +20,10 @@ jobs:
         with:
           lfs: true
 
-      - name: Install Blender dependencies
+      - name: Install Blender and visual-test dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y blender python3-numpy
+          sudo apt-get install -y blender python3-numpy xvfb ffmpeg
           blender --version
           blender --background --python-expr "import numpy; print('NumPy', numpy.__version__)"
 
@@ -49,11 +49,11 @@ jobs:
           GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
           "$GODOT" --headless --path . --editor --quit
           set +e
-          timeout 35s "$GODOT" --headless --path . --quit-after 15 > /tmp/godot-runtime.log 2>&1
+          timeout 45s "$GODOT" --headless --path . --quit-after 20 > /tmp/godot-runtime.log 2>&1
           STATUS=$?
           set -e
           cat /tmp/godot-runtime.log
-          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed" /tmp/godot-runtime.log; then
+          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|ERROR:.*main_hud_final|ERROR:.*ci_hud_capture" /tmp/godot-runtime.log; then
             echo "Godot runtime error detected"
             exit 1
           fi
@@ -61,6 +61,27 @@ jobs:
             echo "Godot exited unexpectedly with status $STATUS"
             exit "$STATUS"
           fi
+
+      - name: Render fully loaded HUD validation
+        run: |
+          GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
+          mkdir -p build/validation
+          rm -f build/validation/HUD-Carte-Portrait.png
+          set +e
+          timeout 125s xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path . -- --ci-hud-shot > /tmp/godot-visual.log 2>&1
+          STATUS=$?
+          set -e
+          cat /tmp/godot-visual.log
+          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|CI HUD capture failed|CI HUD capture timed out" /tmp/godot-visual.log; then
+            exit 1
+          fi
+          if [ "$STATUS" -ne 0 ]; then
+            echo "HUD visual test exited with status $STATUS"
+            exit "$STATUS"
+          fi
+          grep -q "CI HUD capture saved" /tmp/godot-visual.log
+          test -s build/validation/HUD-Carte-Portrait.png
+          file build/validation/HUD-Carte-Portrait.png
 
       - name: Configure Android SDK
         uses: android-actions/setup-android@v3
@@ -83,19 +104,35 @@ jobs:
           test -n "$APK_PATH"
           echo "Found APK at $APK_PATH"
           unzip -t "$APK_PATH" >/dev/null
+          unzip -l "$APK_PATH" | grep -q 'classes.dex'
+          unzip -l "$APK_PATH" | grep -q 'lib/arm64-v8a/libgodot_android.so'
+          unzip -l "$APK_PATH" | grep -q 'assets/carte monde.png'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_hud_final.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_hud_capture.gdc'
           mkdir -p build/final
-          TARGET="build/final/ZeldaLike-10-Zones-Stable-debug.apk"
+          TARGET="build/final/ZeldaLike-Carte-Portrait-debug.apk"
           if [ "$(realpath "$APK_PATH")" != "$(realpath -m "$TARGET")" ]; then
             cp "$APK_PATH" "$TARGET"
           fi
           test -s "$TARGET"
+          sha256sum "$TARGET" | tee build/final/SHA256.txt
           ls -lh "$TARGET"
 
       - name: Upload Android APK
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-10-Zones-Stable-Android
-          path: build/final/ZeldaLike-10-Zones-Stable-debug.apk
+          name: ZeldaLike-Carte-Portrait-Android
+          path: |
+            build/final/ZeldaLike-Carte-Portrait-debug.apk
+            build/final/SHA256.txt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload visual validation
+        uses: actions/upload-artifact@v7
+        with:
+          name: ZeldaLike-HUD-Visual-Validation
+          path: build/validation/HUD-Carte-Portrait.png
           if-no-files-found: error
           retention-days: 30
 
