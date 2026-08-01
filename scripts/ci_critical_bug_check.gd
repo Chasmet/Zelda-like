@@ -14,10 +14,12 @@ func _run_check() -> void:
 	var started_at := Time.get_ticks_msec()
 	while (Time.get_ticks_msec() - started_at) < int(MAX_WAIT_SECONDS * 1000.0):
 		await get_tree().process_frame
-		if game.has_method("get_critical_bugfix_debug"):
-			var pending: Dictionary = game.call("get_critical_bugfix_debug")
-			if bool(pending.get("portrait_restored", false)) and bool(pending.get("water_material", false)):
-				break
+		if not game.has_method("get_critical_bugfix_debug") or not game.has_method("get_portrait_front_debug"):
+			continue
+		var pending: Dictionary = game.call("get_critical_bugfix_debug")
+		var pending_portrait: Dictionary = game.call("get_portrait_front_debug")
+		if bool(pending.get("portrait_restored", false)) and bool(pending.get("water_material", false)) and bool(pending_portrait.get("portrait_front_applied", false)):
+			break
 
 	if not game.has_method("get_critical_bugfix_debug"):
 		_fail("le diagnostic V8 est absent", 80)
@@ -53,7 +55,7 @@ func _run_check() -> void:
 		_fail("la correction du chevalier de face n'est pas chargée", 93)
 		return
 	var portrait_state: Dictionary = game.call("get_portrait_front_debug")
-	if not bool(portrait_state.get("portrait_visible", false)) or not String(portrait_state.get("portrait_texture", "")).ends_with("chk_hero.png"):
+	if not bool(portrait_state.get("portrait_front_applied", false)) or not bool(portrait_state.get("portrait_is_official", false)) or not bool(portrait_state.get("portrait_visible", false)):
 		_fail("le panneau n'affiche pas le portrait officiel de face : %s" % portrait_state, 94)
 		return
 	if not bool(state.get("water_label_centered", false)):
