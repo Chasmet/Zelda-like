@@ -20,11 +20,12 @@ jobs:
         with:
           lfs: true
 
-      - name: Install Blender
+      - name: Install Blender dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y blender
+          sudo apt-get install -y blender python3-numpy
           blender --version
+          blender --background --python-expr "import numpy; print('NumPy', numpy.__version__)"
 
       - name: Generate optimised 3D models
         run: |
