@@ -38,10 +38,11 @@ func _run_walk_check() -> void:
 		get_tree().quit(5)
 		return
 
-	var joystick_rect := joystick_base.get_global_rect()
-	var joystick_center := joystick_rect.position + joystick_rect.size * 0.5
-	var forward_touch := joystick_center + Vector2(0.0, -60.0)
+	var joystick_rect: Rect2 = joystick_base.get_global_rect()
+	var joystick_center: Vector2 = joystick_rect.position + joystick_rect.size * 0.5
+	var forward_touch: Vector2 = joystick_center + Vector2(0.0, -60.0)
 	var start_position: Vector3 = player.global_position
+	print("CI MOVEMENT DEBUG BEFORE: ", player.call("get_movement_debug"))
 
 	var press := InputEventScreenTouch.new()
 	press.index = TEST_TOUCH_ID
@@ -51,15 +52,19 @@ func _run_walk_check() -> void:
 	await get_tree().process_frame
 
 	var applied_move: Vector2 = game.get("virtual_move")
+	print("CI MOVEMENT DEBUG AFTER PRESS: game_move=", applied_move, " player=", player.call("get_movement_debug"))
 	if applied_move.length() < 0.45 or applied_move.y > -0.35:
 		push_error("CI TOUCH CHECK: touching above the joystick did not create forward movement: %s" % applied_move)
 		_release_touch(forward_touch)
 		get_tree().quit(6)
 		return
 
-	await get_tree().create_timer(0.58).timeout
+	await get_tree().create_timer(0.20).timeout
+	print("CI MOVEMENT DEBUG 200MS: ", player.call("get_movement_debug"))
+	await get_tree().create_timer(0.38).timeout
 	var first_position: Vector3 = player.global_position
 	var first_pose: Vector4 = animator.call("get_animation_signature")
+	print("CI MOVEMENT DEBUG 580MS: ", player.call("get_movement_debug"))
 
 	var drag := InputEventScreenDrag.new()
 	drag.index = TEST_TOUCH_ID
@@ -70,16 +75,17 @@ func _run_walk_check() -> void:
 
 	var second_position: Vector3 = player.global_position
 	var second_pose: Vector4 = animator.call("get_animation_signature")
+	print("CI MOVEMENT DEBUG AFTER DRAG: ", player.call("get_movement_debug"))
 	_release_touch(drag.position)
 	await get_tree().process_frame
 
-	var total_travelled := start_position.distance_to(second_position)
-	var interval_travelled := first_position.distance_to(second_position)
-	var pose_change := (second_pose - first_pose).length()
+	var total_travelled: float = start_position.distance_to(second_position)
+	var interval_travelled: float = first_position.distance_to(second_position)
+	var pose_change: float = (second_pose - first_pose).length()
 	var released_move: Vector2 = game.get("virtual_move")
 
 	if total_travelled < 1.2 or interval_travelled < 0.25:
-		push_error("CI TOUCH CHECK: touchscreen joystick did not move the hero; total %.4f interval %.4f" % [total_travelled, interval_travelled])
+		push_error("CI TOUCH CHECK: touchscreen joystick did not move the hero; total %.4f interval %.4f debug=%s" % [total_travelled, interval_travelled, player.call("get_movement_debug")])
 		get_tree().quit(7)
 		return
 	if pose_change < 0.20:
