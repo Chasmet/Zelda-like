@@ -26,9 +26,9 @@ func _capture_water() -> void:
 		return
 
 	var center: Vector3 = game.ZONE_CENTERS[0]
-	var beach_height: float = float(game.call("_zone_height", 0, 0.0, 47.0))
+	var beach_height: float = float(game.call("_zone_height", 0, 0.0, 37.0))
 	player.velocity = Vector3.ZERO
-	player.global_position = Vector3(center.x, beach_height + 0.06, center.z + 47.0)
+	player.global_position = Vector3(center.x, beach_height + 0.08, center.z + 37.0)
 	player.set("spawn_position", player.global_position)
 
 	var pivot := player.get_node_or_null("CameraPivot") as Node3D
@@ -36,19 +36,27 @@ func _capture_water() -> void:
 	if not is_instance_valid(pivot) or not is_instance_valid(arm):
 		_fail("la caméra troisième personne est absente", 102)
 		return
-	pivot.rotation = Vector3(-0.16, PI, 0.0)
-	arm.spring_length = 8.4
+	pivot.position = Vector3(0.0, 2.15, 0.0)
+	pivot.rotation = Vector3(-0.075, PI, 0.0)
+	arm.spring_length = 10.2
 
+	var visual := player.get_node_or_null("Visual") as Node3D
+	if is_instance_valid(visual):
+		visual.rotation.y = PI
+
+	if game.has_method("_update_live_hud"):
+		game.call("_update_live_hud")
+
+	await get_tree().create_timer(2.4).timeout
+	# Les bannières ont leurs propres temporisateurs : les masquer juste avant
+	# la capture garantit que la plage, la ligne d'écume et l'océan restent lisibles.
 	var zone_banner = game.get("zone_banner")
 	var message_label = game.get("message_label")
 	if is_instance_valid(zone_banner):
 		zone_banner.visible = false
 	if is_instance_valid(message_label):
+		message_label.text = ""
 		message_label.visible = false
-	if game.has_method("_update_live_hud"):
-		game.call("_update_live_hud")
-
-	await get_tree().create_timer(2.4).timeout
 	await RenderingServer.frame_post_draw
 	var output_path := ProjectSettings.globalize_path(SCREENSHOT_PATH)
 	DirAccess.make_dir_recursive_absolute(output_path.get_base_dir())
