@@ -27,12 +27,13 @@ jobs:
           blender --version
           blender --background --python-expr "import numpy; print('NumPy', numpy.__version__)"
 
-      - name: Generate optimised 3D models
+      - name: Generate detailed 3D models with Blender
         run: |
           rm -rf generated_models
-          blender --background --python tools/blender/generate_game_assets.py -- --output generated_models
+          blender --background --python tools/blender/generate_game_assets_v2.py -- --output generated_models
           find generated_models -maxdepth 1 -type f -name '*.glb' -printf '%f  %s bytes\n' | sort
           test "$(find generated_models -maxdepth 1 -type f -name '*.glb' | wc -l)" -eq 12
+          test -s generated_models/hero_knight.glb
 
       - name: Configure Android SDK
         uses: android-actions/setup-android@v3
@@ -56,7 +57,7 @@ jobs:
           echo "Found APK at $APK_PATH"
           unzip -t "$APK_PATH" >/dev/null
           mkdir -p build/final
-          TARGET="build/final/ZeldaLike-Blender3D-debug.apk"
+          TARGET="build/final/ZeldaLike-10-Zones-debug.apk"
           if [ "$(realpath "$APK_PATH")" != "$(realpath -m "$TARGET")" ]; then
             cp "$APK_PATH" "$TARGET"
           fi
@@ -66,15 +67,15 @@ jobs:
       - name: Upload Android APK
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Android-debug
-          path: build/final/ZeldaLike-Blender3D-debug.apk
+          name: ZeldaLike-10-Zones-Android
+          path: build/final/ZeldaLike-10-Zones-debug.apk
           if-no-files-found: error
           retention-days: 30
 
       - name: Upload generated Blender models
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-generated-3D-models
+          name: ZeldaLike-detailed-3D-models
           path: generated_models/*.glb
           if-no-files-found: error
           retention-days: 30
