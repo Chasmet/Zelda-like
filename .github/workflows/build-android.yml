@@ -49,17 +49,25 @@ jobs:
           presets_to_export: Android
           cache: true
 
-      - name: Verify APK exists
+      - name: Verify and normalise APK
         run: |
-          find build -type f -name "*.apk" -print
-          test -n "$(find build -type f -name '*.apk' -print -quit)"
-          unzip -t build/ZeldaLike-debug.apk >/dev/null
+          APK_PATH="$(find build -type f -name '*.apk' -print -quit)"
+          test -n "$APK_PATH"
+          echo "Found APK at $APK_PATH"
+          unzip -t "$APK_PATH" >/dev/null
+          mkdir -p build/final
+          TARGET="build/final/ZeldaLike-Blender3D-debug.apk"
+          if [ "$(realpath "$APK_PATH")" != "$(realpath -m "$TARGET")" ]; then
+            cp "$APK_PATH" "$TARGET"
+          fi
+          test -s "$TARGET"
+          ls -lh "$TARGET"
 
       - name: Upload Android APK
         uses: actions/upload-artifact@v7
         with:
           name: ZeldaLike-Android-debug
-          path: build/**/*.apk
+          path: build/final/ZeldaLike-Blender3D-debug.apk
           if-no-files-found: error
           retention-days: 30
 
