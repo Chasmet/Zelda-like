@@ -68,15 +68,15 @@ func _build_tutorial_panel(root: Control) -> void:
 	hide_button.pressed.connect(_hide_tutorial_v83)
 	tutorial_panel.add_child(hide_button)
 
-	# L'aide peut être rouverte sans recommencer une partie. Ce bouton n'intercepte
-	# jamais la zone de caméra et reste sous la mini-carte.
+	# L'aide peut être rouverte sans recommencer une partie. Le bouton est aligné
+	# avec INVENTAIRE, JOURNAL et PAUSE au lieu de flotter devant le monde.
 	tutorial_help_button = Button.new()
 	tutorial_help_button.name = "RouvrirTutorielV83"
-	tutorial_help_button.text = "? AIDE"
+	tutorial_help_button.text = "? AIDE / TUTORIEL"
 	tutorial_help_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	tutorial_help_button.position = Vector2(222.0, 322.0)
-	tutorial_help_button.size = Vector2(84.0, 38.0)
-	tutorial_help_button.add_theme_font_size_override("font_size", 13)
+	tutorial_help_button.position = Vector2(14.0, 330.0)
+	tutorial_help_button.size = Vector2(220.0, 38.0)
+	tutorial_help_button.add_theme_font_size_override("font_size", 12)
 	tutorial_help_button.pressed.connect(_reopen_tutorial_v83)
 	root.add_child(tutorial_help_button)
 
