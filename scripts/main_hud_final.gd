@@ -240,12 +240,14 @@ func _build_character_portrait(root):
 func _build_controls_help(root):
 	controls_help_label = Label.new()
 	controls_help_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	controls_help_label.position = Vector2(-425.0, -54.0)
-	controls_help_label.size = Vector2(850.0, 42.0)
-	controls_help_label.text = "JOYSTICK : BOUGER   •   GLISSER À DROITE : CAMÉRA   •   CARTE : VOIR TA POSITION"
+	# Garde l'aide dans l'espace libre entre le joystick et les commandes.
+	# Le texte précédent passait sous le bouton PLONGER sur un écran 1280 × 720.
+	controls_help_label.position = Vector2(-270.0, -54.0)
+	controls_help_label.size = Vector2(540.0, 42.0)
+	controls_help_label.text = "JOYSTICK : BOUGER   •   GLISSER À DROITE : CAMÉRA"
 	controls_help_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	controls_help_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	controls_help_label.add_theme_font_size_override("font_size", 17)
+	controls_help_label.add_theme_font_size_override("font_size", 16)
 	controls_help_label.add_theme_constant_override("outline_size", 6)
 	controls_help_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(controls_help_label)
