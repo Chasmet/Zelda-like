@@ -2,6 +2,8 @@ extends Node
 
 const MAX_WAIT_SECONDS := 120.0
 const TEST_TOUCH_ID := 27
+const POSE_SAMPLE_COUNT := 12
+const POSE_SAMPLE_INTERVAL := 0.055
 
 
 func _ready() -> void:
@@ -57,17 +59,25 @@ func _run_walk_check() -> void:
 		get_tree().quit(6)
 		return
 
-	# Measure two different limb poses while the same finger remains pressed.
-	await get_tree().create_timer(0.31).timeout
+	# Observe a complete portion of the walk cycle instead of comparing only two
+	# instants. Two samples separated by almost half a cycle can accidentally
+	# land on the same zero crossing even when all four limbs move correctly.
+	await get_tree().create_timer(0.18).timeout
 	var first_position: Vector3 = player.global_position
-	var first_pose: Vector4 = animator.call("get_animation_signature")
-	await get_tree().create_timer(0.27).timeout
-	var second_position: Vector3 = player.global_position
-	var second_pose: Vector4 = animator.call("get_animation_signature")
+	var poses: Array[Vector4] = []
+	var positions: Array[Vector3] = []
+	for _sample_index in range(POSE_SAMPLE_COUNT):
+		poses.append(animator.call("get_animation_signature"))
+		positions.append(player.global_position)
+		await get_tree().create_timer(POSE_SAMPLE_INTERVAL).timeout
 
+	var second_position: Vector3 = player.global_position
 	var total_travelled: float = start_position.distance_to(second_position)
 	var moving_interval: float = first_position.distance_to(second_position)
-	var pose_change: float = (second_pose - first_pose).length()
+	var pose_change: float = 0.0
+	for first_index in range(poses.size()):
+		for second_index in range(first_index + 1, poses.size()):
+			pose_change = maxf(pose_change, (poses[second_index] - poses[first_index]).length())
 	var movement_debug: Dictionary = player.call("get_movement_debug")
 
 	if total_travelled < 2.0 or moving_interval < 0.80:
@@ -76,7 +86,7 @@ func _run_walk_check() -> void:
 		get_tree().quit(7)
 		return
 	if pose_change < 0.15:
-		push_error("CI TOUCH CHECK: hero moved but limbs remained frozen; pose delta %.4f" % pose_change)
+		push_error("CI TOUCH CHECK: hero moved but limbs remained frozen; cycle delta %.4f" % pose_change)
 		_release_touch(forward_touch)
 		get_tree().quit(8)
 		return
@@ -98,7 +108,7 @@ func _run_walk_check() -> void:
 		get_tree().quit(10)
 		return
 
-	print("CI TOUCH CHECK OK: total=%.3f interval=%.3f pose_delta=%.3f stop=%.3f" % [total_travelled, moving_interval, pose_change, stopping_distance])
+	print("CI TOUCH CHECK OK: total=%.3f interval=%.3f cycle_delta=%.3f stop=%.3f" % [total_travelled, moving_interval, pose_change, stopping_distance])
 	get_tree().quit()
 
 
