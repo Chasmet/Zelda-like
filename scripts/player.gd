@@ -5,6 +5,7 @@ signal health_changed(current: int, maximum: int)
 signal died
 signal attack_requested
 signal interact_requested
+signal water_state_changed(swimming: bool)
 
 const MODEL_ANIMATOR_SCRIPT = preload("res://scripts/procedural_animator.gd")
 
@@ -13,6 +14,9 @@ const MODEL_ANIMATOR_SCRIPT = preload("res://scripts/procedural_animator.gd")
 @export var acceleration: float = 24.0
 @export var jump_velocity: float = 8.5
 @export var max_health: int = 100
+@export var water_level: float = -0.92
+@export var swim_speed: float = 4.6
+@export var swim_vertical_speed: float = 3.4
 
 var health: int = 100
 var virtual_move: Vector2 = Vector2.ZERO
@@ -21,6 +25,8 @@ var attack_cooldown: float = 0.0
 var dodge_cooldown: float = 0.0
 var invulnerability: float = 0.0
 var spawn_position: Vector3 = Vector3.ZERO
+var is_swimming: bool = false
+var swim_depth: float = 0.0
 
 var _camera_pivot: Node3D
 var _camera: Camera3D
@@ -29,6 +35,8 @@ var _sword: Node3D
 var _model_animator: ProceduralCharacterAnimator
 var _pitch: float = -0.22
 var _gravity: float = 22.0
+var _swim_vertical_intent: float = 0.0
+var _swim_intent_timer: float = 0.0
 
 var _physics_tick_count: int = 0
 var _last_input_vector: Vector2 = Vector2.ZERO
@@ -55,7 +63,9 @@ func _physics_process(delta: float) -> void:
 	attack_cooldown = maxf(0.0, attack_cooldown - delta)
 	dodge_cooldown = maxf(0.0, dodge_cooldown - delta)
 	invulnerability = maxf(0.0, invulnerability - delta)
-	if not is_on_floor():
+	_swim_intent_timer = maxf(0.0, _swim_intent_timer - delta)
+	_update_water_state()
+	if not is_on_floor() and not is_swimming:
 		velocity.y -= _gravity * delta
 
 	var input_vector: Vector2 = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
@@ -86,7 +96,7 @@ func _physics_process(delta: float) -> void:
 		if direction.length_squared() > 0.0001:
 			direction = direction.normalized()
 		_last_direction = direction
-		var speed: float = sprint_speed if Input.is_action_pressed("sprint") else move_speed
+		var speed: float = swim_speed if is_swimming else (sprint_speed if Input.is_action_pressed("sprint") else move_speed)
 		_last_target_velocity = Vector3(direction.x * speed, velocity.y, direction.z * speed)
 
 		if direction.length_squared() > 0.01:
@@ -100,19 +110,30 @@ func _physics_process(delta: float) -> void:
 
 		if Input.is_action_just_pressed("jump") and is_on_floor():
 			velocity.y = jump_velocity
+		elif Input.is_action_just_pressed("jump") and is_swimming:
+			ascend()
 		if Input.is_action_just_pressed("attack"):
 			attack()
-		if Input.is_action_just_pressed("dodge"):
+		if Input.is_action_just_pressed("dodge") and is_swimming:
+			dive()
+		elif Input.is_action_just_pressed("dodge"):
 			dodge()
 		if Input.is_action_just_pressed("interact"):
 			interact()
+
+	if is_swimming:
+		var desired_vertical = _swim_vertical_intent * swim_vertical_speed if _swim_intent_timer > 0.0 else 0.0
+		velocity.y = move_toward(velocity.y, desired_vertical, 5.5 * delta)
+		swim_depth = maxf(0.0, water_level - global_position.y)
+	else:
+		swim_depth = 0.0
 
 	_last_position_before_slide = global_position
 	move_and_slide()
 	_last_position_after_slide = global_position
 	_last_slide_count = get_slide_collision_count()
 	_update_model_animation()
-	if global_position.y < -12.0:
+	if global_position.y < -31.0:
 		_respawn()
 
 
@@ -160,6 +181,20 @@ func set_virtual_move(value: Vector2) -> void:
 	virtual_move = value.limit_length(1.0)
 
 
+func ascend() -> void:
+	if not is_swimming:
+		return
+	_swim_vertical_intent = 1.0
+	_swim_intent_timer = 0.42
+
+
+func dive() -> void:
+	if not is_swimming:
+		return
+	_swim_vertical_intent = -1.0
+	_swim_intent_timer = 0.42
+
+
 func add_camera_look(value: Vector2) -> void:
 	if not is_instance_valid(_camera_pivot):
 		return
@@ -184,6 +219,9 @@ func attack() -> void:
 
 
 func dodge() -> void:
+	if is_swimming:
+		dive()
+		return
 	if dodge_cooldown > 0.0 or not can_control:
 		return
 	dodge_cooldown = 0.9
@@ -277,6 +315,10 @@ func apply_asset(path: String) -> void:
 
 
 func _hero_frame(texture: Texture2D) -> Texture2D:
+	# Le portrait CHK Hero est une image complète et non une planche d'animation.
+	# Les anciennes planches restent découpées pour préserver leur compatibilité.
+	if not texture.resource_path.contains("pack player"):
+		return texture
 	var width: int = texture.get_width()
 	var height: int = texture.get_height()
 	if width <= 0 or height <= 0:
@@ -301,6 +343,9 @@ func _hero_frame(texture: Texture2D) -> Texture2D:
 func _respawn() -> void:
 	can_control = false
 	velocity = Vector3.ZERO
+	if is_swimming:
+		is_swimming = false
+		water_state_changed.emit(false)
 	global_position = spawn_position
 	health = max_health
 	health_changed.emit(health, max_health)
@@ -380,7 +425,20 @@ func _update_model_animation() -> void:
 	if not is_instance_valid(_model_animator):
 		return
 	var horizontal_speed: float = Vector2(velocity.x, velocity.z).length()
-	_model_animator.set_locomotion(horizontal_speed / maxf(sprint_speed, 0.01), not is_on_floor())
+	_model_animator.set_locomotion(horizontal_speed / maxf(sprint_speed, 0.01), not is_on_floor() and not is_swimming)
+
+
+func _update_water_state() -> void:
+	var should_swim = global_position.y <= water_level - 0.30
+	if is_swimming and is_on_floor() and global_position.y > water_level - 0.12:
+		should_swim = false
+	if should_swim == is_swimming:
+		return
+	is_swimming = should_swim
+	velocity.y = 0.0
+	_swim_vertical_intent = 0.0
+	_swim_intent_timer = 0.0
+	water_state_changed.emit(is_swimming)
 
 
 func _clear_generated_visual(remove_weapon: bool = false) -> void:

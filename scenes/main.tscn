@@ -1,9 +1,15 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=11 format=3]
 
-[ext_resource type="Script" path="res://scripts/main_mobile_final.gd" id="1_main"]
+[ext_resource type="Script" path="res://scripts/main_coastline_polish_v8_5.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/portrait_hud_adjuster.gd" id="2_portrait"]
 [ext_resource type="Script" path="res://scripts/ci_hud_capture.gd" id="3_capture"]
 [ext_resource type="Script" path="res://scripts/ci_walk_animation_check.gd" id="4_walk"]
+[ext_resource type="Script" path="res://scripts/ci_open_world_check.gd" id="5_world"]
+[ext_resource type="Script" path="res://scripts/ci_visual_quality_check.gd" id="6_visual"]
+[ext_resource type="Script" path="res://scripts/ci_critical_bug_check.gd" id="7_critical"]
+[ext_resource type="Script" path="res://scripts/ci_water_capture.gd" id="8_water_capture"]
+[ext_resource type="Script" path="res://scripts/ci_mobile_ui_check.gd" id="9_mobile_ui"]
+[ext_resource type="Script" path="res://scripts/ci_mobile_ui_capture.gd" id="10_mobile_ui_capture"]
 
 [node name="SkypieaMobileFinal" type="Node3D"]
 script = ExtResource("1_main")
@@ -16,3 +22,21 @@ script = ExtResource("3_capture")
 
 [node name="CIWalkAnimationCheck" type="Node" parent="."]
 script = ExtResource("4_walk")
+
+[node name="CIOpenWorldCheck" type="Node" parent="."]
+script = ExtResource("5_world")
+
+[node name="CIVisualQualityCheck" type="Node" parent="."]
+script = ExtResource("6_visual")
+
+[node name="CICriticalBugCheck" type="Node" parent="."]
+script = ExtResource("7_critical")
+
+[node name="CIWaterCapture" type="Node" parent="."]
+script = ExtResource("8_water_capture")
+
+[node name="CIMobileUICheck" type="Node" parent="."]
+script = ExtResource("9_mobile_ui")
+
+[node name="CIMobileUICapture" type="Node" parent="."]
+script = ExtResource("10_mobile_ui_capture")

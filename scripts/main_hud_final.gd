@@ -1,6 +1,7 @@
 extends "res://scripts/main_worldmap.gd"
 
 const HUD_MAP_TEXTURE = preload("res://carte monde.png")
+const CHK_HERO_PORTRAIT = preload("res://assets/characters/chk_hero.png")
 
 var mini_map_frame
 var mini_map_marker
@@ -8,6 +9,7 @@ var full_map_marker
 var controls_help_label
 var portrait_viewport
 var portrait_model
+var hero_status_label: Label
 var live_hud_timer
 var smoothed_marker = Vector2.ZERO
 var marker_ready = false
@@ -51,7 +53,13 @@ func _build_hud():
 	_build_joystick(root)
 	_build_action_buttons(root)
 	_build_controls_help(root)
+	_build_water_depth_indicator(root)
+	_build_adventure_panels(root)
 	_build_full_world_map(root)
+	_build_dialogue_panel(root)
+	_build_tutorial_panel(root)
+	_build_pause_settings_panel(root)
+	_build_title_panel(root)
 
 	live_hud_timer = Timer.new()
 	live_hud_timer.wait_time = 0.05
@@ -82,6 +90,15 @@ func _build_top_information_bar(root):
 	health_label.add_theme_font_size_override("font_size", 19)
 	health_label.add_theme_constant_override("outline_size", 4)
 	bar.add_child(health_label)
+
+	world_status_label = Label.new()
+	world_status_label.position = Vector2(292.0, 47.0)
+	world_status_label.size = Vector2(340.0, 31.0)
+	world_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	world_status_label.add_theme_font_size_override("font_size", 16)
+	world_status_label.add_theme_constant_override("outline_size", 4)
+	world_status_label.modulate = Color(0.76, 0.88, 1.0)
+	bar.add_child(world_status_label)
 
 	objective_label = Label.new()
 	objective_label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
@@ -162,7 +179,7 @@ func _build_character_portrait(root):
 	portrait_viewport.size = Vector2i(148, 188)
 	portrait_viewport.transparent_bg = true
 	portrait_viewport.own_world_3d = true
-	portrait_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	portrait_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
 	add_child(portrait_viewport)
 
 	var environment = WorldEnvironment.new()
@@ -204,31 +221,33 @@ func _build_character_portrait(root):
 	var portrait_texture = TextureRect.new()
 	portrait_texture.position = Vector2(4.0, 32.0)
 	portrait_texture.size = Vector2(148.0, 188.0)
-	portrait_texture.texture = portrait_viewport.get_texture()
+	portrait_texture.texture = CHK_HERO_PORTRAIT
 	portrait_texture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	portrait_texture.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(portrait_texture)
 
-	var status = Label.new()
-	status.text = "HÉROS • PRÊT"
-	status.position = Vector2(4.0, 220.0)
-	status.size = Vector2(148.0, 25.0)
-	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	status.add_theme_font_size_override("font_size", 14)
-	status.add_theme_constant_override("outline_size", 4)
-	panel.add_child(status)
+	hero_status_label = Label.new()
+	hero_status_label.text = "CHK HERO"
+	hero_status_label.position = Vector2(4.0, 220.0)
+	hero_status_label.size = Vector2(148.0, 25.0)
+	hero_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hero_status_label.add_theme_font_size_override("font_size", 14)
+	hero_status_label.add_theme_constant_override("outline_size", 4)
+	panel.add_child(hero_status_label)
 
 
 func _build_controls_help(root):
 	controls_help_label = Label.new()
 	controls_help_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	controls_help_label.position = Vector2(-425.0, -54.0)
-	controls_help_label.size = Vector2(850.0, 42.0)
-	controls_help_label.text = "JOYSTICK : BOUGER   •   GLISSER À DROITE : CAMÉRA   •   CARTE : VOIR TA POSITION"
+	# Garde l'aide dans l'espace libre entre le joystick et les commandes.
+	# Le texte précédent passait sous le bouton PLONGER sur un écran 1280 × 720.
+	controls_help_label.position = Vector2(-270.0, -54.0)
+	controls_help_label.size = Vector2(540.0, 42.0)
+	controls_help_label.text = "JOYSTICK : BOUGER   •   GLISSER À DROITE : CAMÉRA"
 	controls_help_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	controls_help_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	controls_help_label.add_theme_font_size_override("font_size", 17)
+	controls_help_label.add_theme_font_size_override("font_size", 16)
 	controls_help_label.add_theme_constant_override("outline_size", 6)
 	controls_help_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(controls_help_label)
@@ -272,6 +291,7 @@ func _build_full_world_map(root):
 	map_frame.add_child(map_texture)
 
 	_add_zone_numbers(map_frame, 20, true)
+	_build_discovery_markers(map_frame)
 	full_map_marker = _create_player_marker(map_frame, true)
 	map_player_marker = full_map_marker
 
@@ -384,6 +404,7 @@ func _position_marker(marker, frame, normalized):
 
 func _update_map_marker():
 	_update_live_hud()
+	_refresh_map_discoveries()
 	if is_instance_valid(map_zone_label):
 		map_zone_label.text = "● VOUS ÊTES EN ZONE %d — %s" % [current_zone + 1, ZONE_NAMES[current_zone]]
 

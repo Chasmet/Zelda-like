@@ -62,17 +62,15 @@ func _build_terrain(zone_index):
 	visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	body.add_child(visual)
 
-	var collision_width: int = int(round(TERRAIN_SIZE.x)) + 1
-	var collision_depth: int = int(round(TERRAIN_SIZE.y)) + 1
-	var half_width: float = float(collision_width - 1) * 0.5
-	var half_depth: float = float(collision_depth - 1) * 0.5
+	var collision_width: int = TERRAIN_STEPS + 1
+	var collision_depth: int = TERRAIN_STEPS + 1
 	var heights := PackedFloat32Array()
 	heights.resize(collision_width * collision_depth)
 	var data_index: int = 0
 	for depth_index in range(collision_depth):
-		var local_z: float = float(depth_index) - half_depth
+		var local_z: float = -TERRAIN_SIZE.y * 0.5 + float(depth_index) * step_z
 		for width_index in range(collision_width):
-			var local_x: float = float(width_index) - half_width
+			var local_x: float = -TERRAIN_SIZE.x * 0.5 + float(width_index) * step_x
 			heights[data_index] = float(_zone_height(zone_index, local_x, local_z))
 			data_index += 1
 
@@ -84,8 +82,9 @@ func _build_terrain(zone_index):
 	var collision := CollisionShape3D.new()
 	collision.name = "WalkableHeightMap"
 	collision.shape = height_shape
+	collision.scale = Vector3(step_x, 1.0, step_z)
 	body.add_child(collision)
-	add_child(body)
+	_attach_world_node(body)
 
 
 # The old bridges crossed the middle of each island at y=1.35, above the
@@ -93,8 +92,13 @@ func _build_terrain(zone_index):
 # Keep the bridge floor near sea level so it only becomes walkable after the
 # island shore descends, while remaining safely above the ocean.
 func _build_bridge(zone_a, zone_b, width, color):
-	var start: Vector3 = ZONE_CENTERS[zone_a]
-	var finish: Vector3 = ZONE_CENTERS[zone_b]
+	var center_a: Vector3 = ZONE_CENTERS[zone_a]
+	var center_b: Vector3 = ZONE_CENTERS[zone_b]
+	var center_delta: Vector3 = center_b - center_a
+	var direction := Vector3(center_delta.x, 0.0, center_delta.z).normalized()
+	var shore_distance: float = minf(TERRAIN_SIZE.x, TERRAIN_SIZE.y) * 0.43
+	var start: Vector3 = center_a + direction * shore_distance
+	var finish: Vector3 = center_b - direction * shore_distance
 	var delta: Vector3 = finish - start
 	var horizontal := Vector3(delta.x, 0.0, delta.z)
 	var length: float = horizontal.length()
@@ -164,7 +168,13 @@ func _build_joystick(root):
 
 
 func _input(event):
+	if is_instance_valid(dialogue_panel) and dialogue_panel.visible:
+		_release_movement_touch()
+		return
 	if is_instance_valid(map_panel) and map_panel.visible:
+		_release_movement_touch()
+		return
+	if is_instance_valid(adventure_panel) and adventure_panel.visible:
 		_release_movement_touch()
 		return
 
