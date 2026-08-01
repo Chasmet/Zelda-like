@@ -7,6 +7,88 @@ var fixed_joystick_base: Control
 var fixed_joystick_label: Label
 
 
+# The previous ConcavePolygonShape3D incorrectly treated the centre of every
+# island as a vertical wall. Use a real height-map collider: this terrain is a
+# regular height grid, which is exactly what HeightMapShape3D is designed for.
+func _build_terrain(zone_index):
+	var center: Vector3 = ZONE_CENTERS[zone_index]
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(_terrain_material(zone_index))
+
+	var step_x: float = TERRAIN_SIZE.x / float(TERRAIN_STEPS)
+	var step_z: float = TERRAIN_SIZE.y / float(TERRAIN_STEPS)
+
+	for z_index in range(TERRAIN_STEPS):
+		for x_index in range(TERRAIN_STEPS):
+			var x0: float = -TERRAIN_SIZE.x * 0.5 + float(x_index) * step_x
+			var x1: float = x0 + step_x
+			var z0: float = -TERRAIN_SIZE.y * 0.5 + float(z_index) * step_z
+			var z1: float = z0 + step_z
+
+			var p00 := Vector3(x0, _zone_height(zone_index, x0, z0), z0)
+			var p10 := Vector3(x1, _zone_height(zone_index, x1, z0), z0)
+			var p01 := Vector3(x0, _zone_height(zone_index, x0, z1), z1)
+			var p11 := Vector3(x1, _zone_height(zone_index, x1, z1), z1)
+
+			var uv00 := Vector2(float(x_index), float(z_index)) / float(TERRAIN_STEPS) * 7.0
+			var uv10 := Vector2(float(x_index + 1), float(z_index)) / float(TERRAIN_STEPS) * 7.0
+			var uv01 := Vector2(float(x_index), float(z_index + 1)) / float(TERRAIN_STEPS) * 7.0
+			var uv11 := Vector2(float(x_index + 1), float(z_index + 1)) / float(TERRAIN_STEPS) * 7.0
+
+			surface.set_uv(uv00)
+			surface.add_vertex(p00)
+			surface.set_uv(uv01)
+			surface.add_vertex(p01)
+			surface.set_uv(uv11)
+			surface.add_vertex(p11)
+
+			surface.set_uv(uv00)
+			surface.add_vertex(p00)
+			surface.set_uv(uv11)
+			surface.add_vertex(p11)
+			surface.set_uv(uv10)
+			surface.add_vertex(p10)
+
+	surface.generate_normals()
+	var terrain_mesh: ArrayMesh = surface.commit()
+
+	var body := StaticBody3D.new()
+	body.name = "Zone_%02d_Terrain" % (zone_index + 1)
+	body.position = center
+
+	var visual := MeshInstance3D.new()
+	visual.mesh = terrain_mesh
+	visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	body.add_child(visual)
+
+	# One vertex per metre avoids unsupported non-uniform collision scaling.
+	var collision_width: int = int(round(TERRAIN_SIZE.x)) + 1
+	var collision_depth: int = int(round(TERRAIN_SIZE.y)) + 1
+	var half_width: float = float(collision_width - 1) * 0.5
+	var half_depth: float = float(collision_depth - 1) * 0.5
+	var heights := PackedFloat32Array()
+	heights.resize(collision_width * collision_depth)
+	var data_index: int = 0
+	for depth_index in range(collision_depth):
+		var local_z: float = float(depth_index) - half_depth
+		for width_index in range(collision_width):
+			var local_x: float = float(width_index) - half_width
+			heights[data_index] = float(_zone_height(zone_index, local_x, local_z))
+			data_index += 1
+
+	var height_shape := HeightMapShape3D.new()
+	height_shape.map_width = collision_width
+	height_shape.map_depth = collision_depth
+	height_shape.map_data = heights
+
+	var collision := CollisionShape3D.new()
+	collision.name = "WalkableHeightMap"
+	collision.shape = height_shape
+	body.add_child(collision)
+	add_child(body)
+
+
 func _build_joystick(root):
 	fixed_joystick_base = ColorRect.new()
 	fixed_joystick_base.name = "FixedMovementJoystick"
