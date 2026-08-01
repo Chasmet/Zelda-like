@@ -1,49 +1,45 @@
 # Les Chroniques de Skypiea — Zelda-like RPG 3D
 
-Base jouable d’un RPG d’action 3D sous Godot 4.7, pensée pour Android et créée autour des assets présents dans ce dépôt.
+RPG d’action 3D sous Godot 4.7, conçu pour Android et construit autour des planches de personnages, ennemis, carte, textures et musiques présentes dans ce dépôt.
 
-## Gameplay inclus
+## Refonte 3D
 
-- déplacement libre en troisième personne et caméra 360° ;
-- commandes tactiles Android et commandes clavier/souris ;
-- attaque à l’épée, esquive, saut, dégâts, recul et réapparition ;
-- huit ennemis avec variantes, poursuite, attaque et barre de vie ;
-- quête complète : vaincre cinq créatures, récupérer la relique puis ouvrir le portail ;
-- village, ancien, feu de repos, ruines, forêt, océan et objets de décor ;
-- cycle jour/nuit, brouillard et pluie dynamique ;
-- sauvegarde automatique de la position, de la vie et de la progression ;
-- détection automatique des images, modèles 3D et sons déjà déposés dans le projet.
+Le jeu n’utilise plus les PNG comme simples panneaux face caméra lorsque les modèles générés sont disponibles. Le workflow Android lance Blender, crée des GLB optimisés puis Godot les importe dans le jeu.
 
-## Assets reconnus automatiquement
+Modèles produits automatiquement :
 
-Le jeu parcourt les dossiers du dépôt au démarrage. Il reconnaît :
+- héros chevalier bleu, blanc, vert et or d’après les vues de référence ;
+- sanglier cuirassé, golem de cristal, molosse de lave, chevalier Anubis, gobelin à deux lames, ogre de glace et chef orc ;
+- arbre, maison de village, porte en ruine et bateau.
 
-- images : PNG, JPG, JPEG, WEBP et SVG ;
-- modèles/scènes : GLB, GLTF, FBX, OBJ, DAE, TSCN et SCN ;
-- audio : OGG, WAV et MP3.
+Les pivots nommés des modèles sont animés en temps réel : respiration, marche, course, saut, attaque, esquive, impact et mort. Les images originales restent les solutions de secours si un GLB n’a pas encore été généré.
 
-Les noms contenant `cheikh`, `yvane`, `nelvin`, `hero`, `player`, `chevalier` ou `knight` sont prioritaires pour le héros. Les noms contenant `enemy`, `ennemi`, `monster`, `monstre`, `goblin`, `tortue`, `lievre`, `wolf` ou `bandit` sont prioritaires pour les ennemis.
+## Gameplay
 
-## Contrôles
+- déplacement troisième personne et caméra 360° ;
+- commandes tactiles Android et clavier/souris ;
+- attaque, esquive, saut, dégâts, recul et réapparition ;
+- quatorze ennemis issus de sept familles ;
+- village, forêt, ruines, océan et bateau 3D ;
+- musique d’exploration et musique de combat ;
+- interface, carte et objectif de victoire.
 
-### Android
+## Générer les modèles avec Blender
 
-- joystick gauche : déplacement ;
-- glisser sur la partie droite : caméra ;
-- boutons : attaque, esquive, saut et action.
+```bash
+blender --background --python tools/blender/generate_game_assets.py -- --output generated_models
+```
 
-### PC
+Blender est uniquement nécessaire pour fabriquer les GLB. Il n’est pas embarqué dans l’APK.
 
-- ZQSD/WASD ou flèches : déplacement ;
-- souris : caméra ;
-- clic gauche ou F : attaque ;
-- Maj : esquive ;
-- E : action ;
-- Espace : saut ;
-- Ctrl : sprint.
+## Compilation Android
 
-## Compilation Android automatique
+Le workflow `.github/workflows/build-android.yml` :
 
-Le workflow `.github/workflows/build-android.yml` compile l’APK avec Godot 4.7.1 et le publie dans l’onglet **Actions > Artifacts** sous le nom `ZeldaLike-Android-debug`.
+1. installe Blender ;
+2. génère et vérifie les douze modèles GLB ;
+3. exporte le projet avec Godot 4.7.1 ;
+4. vérifie qu’un véritable APK existe ;
+5. publie l’APK et les modèles dans les Artifacts GitHub Actions.
 
-Lancement manuel : ouvrir `project.godot` avec Godot 4.7.1, laisser les assets s’importer, puis lancer la scène principale.
+L’APK attendu est `build/ZeldaLike-debug.apk`.
