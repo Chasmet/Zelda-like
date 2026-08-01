@@ -45,7 +45,7 @@ func bind_model(model_root: Node3D) -> void:
 	]
 	for candidate: Variant in candidates:
 		if candidate is Node3D:
-			var part := candidate as Node3D
+			var part: Node3D = candidate as Node3D
 			if is_instance_valid(part) and not _parts.has(part):
 				_parts.append(part)
 				_base_transforms[part] = part.transform
@@ -146,7 +146,7 @@ func _action_progress() -> float:
 
 
 func _animate_locomotion() -> void:
-	var breathing := sin(_time * 2.25)
+	var breathing: float = sin(_time * 2.25)
 	if is_instance_valid(_torso):
 		_torso.position.y += breathing * 0.018
 		torso_idle_rotation(_torso, breathing)
@@ -159,18 +159,17 @@ func _animate_locomotion() -> void:
 			_cape.rotation.z += sin(_time * 1.1) * 0.014
 		return
 
-	var run_blend := clampf((_move_ratio - 0.58) / 0.42, 0.0, 1.0)
-	var cadence := lerpf(7.4, 12.2, run_blend)
-	var phase := _time * cadence
-	var stride := sin(phase)
-	var opposite := sin(phase + PI)
-	var impact := abs(sin(phase))
-	var swing_amount := lerpf(0.62, 1.02, run_blend) * clampf(_move_ratio + 0.20, 0.0, 1.2)
-	var leg_amount := swing_amount * 0.92
-	var bounce := impact * lerpf(0.050, 0.095, run_blend)
-	var side_shift := sin(phase * 0.5) * lerpf(0.018, 0.040, run_blend)
+	var run_blend: float = clampf((_move_ratio - 0.58) / 0.42, 0.0, 1.0)
+	var cadence: float = lerpf(7.4, 12.2, run_blend)
+	var phase: float = _time * cadence
+	var stride: float = sin(phase)
+	var opposite: float = sin(phase + PI)
+	var impact: float = absf(sin(phase))
+	var swing_amount: float = lerpf(0.62, 1.02, run_blend) * clampf(_move_ratio + 0.20, 0.0, 1.2)
+	var leg_amount: float = swing_amount * 0.92
+	var bounce: float = impact * lerpf(0.050, 0.095, run_blend)
+	var side_shift: float = sin(phase * 0.5) * lerpf(0.018, 0.040, run_blend)
 
-	# This root motion remains visible even if an imported asset loses a named pivot.
 	_model_root.position.y += bounce
 	_model_root.position.x += side_shift
 	_model_root.rotation.x += lerpf(-0.035, -0.12, run_blend)
@@ -227,11 +226,11 @@ func _animate_airborne() -> void:
 
 
 func _animate_attack() -> void:
-	var progress := _action_progress()
-	var windup := clampf(progress / 0.30, 0.0, 1.0)
-	var strike := clampf((progress - 0.30) / 0.34, 0.0, 1.0)
-	var recover := clampf((progress - 0.64) / 0.36, 0.0, 1.0)
-	var arc := sin(progress * PI)
+	var progress: float = _action_progress()
+	var windup: float = clampf(progress / 0.30, 0.0, 1.0)
+	var strike: float = clampf((progress - 0.30) / 0.34, 0.0, 1.0)
+	var recover: float = clampf((progress - 0.64) / 0.36, 0.0, 1.0)
+	var arc: float = sin(progress * PI)
 
 	_model_root.position.y += arc * 0.035
 	if is_instance_valid(_arm_right):
@@ -250,8 +249,8 @@ func _animate_attack() -> void:
 
 
 func _animate_dodge() -> void:
-	var progress := _action_progress()
-	var arc := sin(progress * PI)
+	var progress: float = _action_progress()
+	var arc: float = sin(progress * PI)
 	_model_root.position.y -= arc * 0.34
 	_model_root.rotation.z += sin(progress * TAU) * 0.22
 	if is_instance_valid(_torso):
@@ -269,8 +268,8 @@ func _animate_dodge() -> void:
 
 
 func _animate_hit() -> void:
-	var progress := _action_progress()
-	var kick := sin(progress * PI)
+	var progress: float = _action_progress()
+	var kick: float = sin(progress * PI)
 	_model_root.position.z += kick * 0.09
 	if is_instance_valid(_torso):
 		_torso.rotation.x -= kick * 0.42
@@ -283,8 +282,8 @@ func _animate_hit() -> void:
 
 
 func _animate_death() -> void:
-	var progress := _action_progress()
-	var fall := progress * progress * (3.0 - 2.0 * progress)
+	var progress: float = _action_progress()
+	var fall: float = progress * progress * (3.0 - 2.0 * progress)
 	_model_root.rotation.x += fall * 1.50
 	_model_root.position.y -= fall * 0.52
 	if is_instance_valid(_arm_left):
@@ -309,12 +308,12 @@ func _find_part(prefixes: Array[String]) -> Node3D:
 
 func _find_part_recursive(node: Node, prefixes: Array[String]) -> Node3D:
 	if node is Node3D:
-		var node_name := String(node.name).to_lower()
+		var node_name: String = String(node.name).to_lower()
 		for prefix: String in prefixes:
 			if node_name.begins_with(prefix.to_lower()):
 				return node as Node3D
 	for child: Node in node.get_children():
-		var found := _find_part_recursive(child, prefixes)
+		var found: Node3D = _find_part_recursive(child, prefixes)
 		if found != null:
 			return found
 	return null
