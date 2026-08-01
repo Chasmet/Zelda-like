@@ -20,10 +20,10 @@ jobs:
         with:
           lfs: true
 
-      - name: Install Blender dependencies
+      - name: Install Blender and visual-test dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y blender python3-numpy
+          sudo apt-get install -y blender python3-numpy xvfb ffmpeg
           blender --version
           blender --background --python-expr "import numpy; print('NumPy', numpy.__version__)"
 
@@ -49,16 +49,35 @@ jobs:
           GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
           "$GODOT" --headless --path . --editor --quit
           set +e
-          timeout 35s "$GODOT" --headless --path . --quit-after 15 > /tmp/godot-runtime.log 2>&1
+          timeout 45s "$GODOT" --headless --path . --quit-after 20 > /tmp/godot-runtime.log 2>&1
           STATUS=$?
           set -e
           cat /tmp/godot-runtime.log
-          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed" /tmp/godot-runtime.log; then
+          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|ERROR:.*main_hud_final" /tmp/godot-runtime.log; then
             echo "Godot runtime error detected"
             exit 1
           fi
           if [ "$STATUS" -ne 0 ] && [ "$STATUS" -ne 124 ]; then
             echo "Godot exited unexpectedly with status $STATUS"
+            exit "$STATUS"
+          fi
+
+      - name: Render visual HUD validation
+        run: |
+          GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
+          mkdir -p build/validation
+          set +e
+          timeout 55s xvfb-run -a "$GODOT" --path . --write-movie build/validation/gameplay.avi --fixed-fps 30 --quit-after 480 > /tmp/godot-visual.log 2>&1
+          STATUS=$?
+          set -e
+          cat /tmp/godot-visual.log
+          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed" /tmp/godot-visual.log; then
+            exit 1
+          fi
+          test -s build/validation/gameplay.avi
+          ffmpeg -y -sseof -1 -i build/validation/gameplay.avi -frames:v 1 build/validation/HUD-Carte-Portrait.png
+          test -s build/validation/HUD-Carte-Portrait.png
+          if [ "$STATUS" -ne 0 ] && [ "$STATUS" -ne 124 ]; then
             exit "$STATUS"
           fi
 
@@ -83,19 +102,34 @@ jobs:
           test -n "$APK_PATH"
           echo "Found APK at $APK_PATH"
           unzip -t "$APK_PATH" >/dev/null
+          unzip -l "$APK_PATH" | grep -q 'classes.dex'
+          unzip -l "$APK_PATH" | grep -q 'lib/arm64-v8a/libgodot_android.so'
+          unzip -l "$APK_PATH" | grep -q 'assets/carte monde.png'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_hud_final.gdc'
           mkdir -p build/final
-          TARGET="build/final/ZeldaLike-10-Zones-Stable-debug.apk"
+          TARGET="build/final/ZeldaLike-Carte-Portrait-debug.apk"
           if [ "$(realpath "$APK_PATH")" != "$(realpath -m "$TARGET")" ]; then
             cp "$APK_PATH" "$TARGET"
           fi
           test -s "$TARGET"
+          sha256sum "$TARGET" | tee build/final/SHA256.txt
           ls -lh "$TARGET"
 
       - name: Upload Android APK
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-10-Zones-Stable-Android
-          path: build/final/ZeldaLike-10-Zones-Stable-debug.apk
+          name: ZeldaLike-Carte-Portrait-Android
+          path: |
+            build/final/ZeldaLike-Carte-Portrait-debug.apk
+            build/final/SHA256.txt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload visual validation
+        uses: actions/upload-artifact@v7
+        with:
+          name: ZeldaLike-HUD-Visual-Validation
+          path: build/validation/HUD-Carte-Portrait.png
           if-no-files-found: error
           retention-days: 30
 
