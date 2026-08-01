@@ -69,7 +69,7 @@ func _unhandled_input(_event):
 
 
 func _handle_screen_touch(event: InputEventScreenTouch):
-	var screen_size := get_viewport().get_visible_rect().size
+	var screen_size: Vector2 = get_viewport().get_visible_rect().size
 
 	if event.pressed:
 		if move_touch_id < 0 and _is_movement_area(event.position, screen_size):
@@ -124,16 +124,16 @@ func _is_camera_area(position: Vector2, screen_size: Vector2) -> bool:
 
 func _fixed_joystick_center() -> Vector2:
 	if is_instance_valid(fixed_joystick_base):
-		var rect := fixed_joystick_base.get_global_rect()
+		var rect: Rect2 = fixed_joystick_base.get_global_rect()
 		return rect.position + rect.size * 0.5
-	var visible_size := get_viewport().get_visible_rect().size
+	var visible_size: Vector2 = get_viewport().get_visible_rect().size
 	return Vector2(108.0, visible_size.y - 110.0)
 
 
 func _update_fixed_joystick(screen_position: Vector2):
 	move_origin = _fixed_joystick_center()
-	var offset := (screen_position - move_origin).limit_length(FIXED_JOYSTICK_RADIUS)
-	var direction := offset / FIXED_JOYSTICK_RADIUS
+	var offset: Vector2 = (screen_position - move_origin).limit_length(FIXED_JOYSTICK_RADIUS)
+	var direction: Vector2 = offset / FIXED_JOYSTICK_RADIUS
 	if direction.length() < JOYSTICK_DEAD_ZONE:
 		direction = Vector2.ZERO
 	virtual_move = direction
