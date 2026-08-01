@@ -79,28 +79,40 @@ func _run_check() -> void:
 		_fail("le tutoriel recouvre CHK HERO", 122)
 		return
 
+	var map_button = game.get("map_button")
+	if not is_instance_valid(map_button) or not map_button.visible:
+		_fail("le bouton CARTE est absent ou masqué", 123)
+		return
+	var map_button_rect: Rect2 = map_button.get_global_rect()
+	if not _inside_screen(map_button_rect, screen_rect):
+		_fail("le bouton CARTE sort de l'écran : %s" % map_button_rect, 124)
+		return
+	if map_button_rect.intersects(portrait_rect):
+		_fail("le bouton CARTE est caché par CHK HERO", 125)
+		return
+
 	var action_buttons: Array[Button] = []
 	_collect_action_buttons(game, action_buttons)
 	if action_buttons.size() < ACTION_TEXTS.size():
-		_fail("commandes tactiles incomplètes : %d / %d" % [action_buttons.size(), ACTION_TEXTS.size()], 123)
+		_fail("commandes tactiles incomplètes : %d / %d" % [action_buttons.size(), ACTION_TEXTS.size()], 126)
 		return
 	for button in action_buttons:
 		var button_rect: Rect2 = button.get_global_rect()
 		if not _inside_screen(button_rect, screen_rect):
-			_fail("la commande %s sort de l'écran : %s" % [button.text, button_rect], 124)
+			_fail("la commande %s sort de l'écran : %s" % [button.text, button_rect], 127)
 			return
 		if tutorial_rect.intersects(button_rect):
-			_fail("le tutoriel recouvre la commande %s" % button.text, 125)
+			_fail("le tutoriel recouvre la commande %s" % button.text, 128)
 			return
 
 	var message_label = game.get("message_label")
 	if is_instance_valid(message_label):
 		var message_rect: Rect2 = message_label.get_global_rect()
 		if absf(message_rect.get_center().x - screen_rect.get_center().x) > 4.0:
-			_fail("les notifications ne sont pas centrées : %s" % message_rect, 126)
+			_fail("les notifications ne sont pas centrées : %s" % message_rect, 129)
 			return
 
-	print("CI MOBILE UI CHECK OK: tutoriel=%s joystick=%s portrait=%s commandes=%d" % [tutorial_rect, joystick_rect, portrait_rect, action_buttons.size()])
+	print("CI MOBILE UI CHECK OK: tutoriel=%s joystick=%s portrait=%s carte=%s commandes=%d" % [tutorial_rect, joystick_rect, portrait_rect, map_button_rect, action_buttons.size()])
 	if game.has_method("_shutdown_audio"):
 		game.call("_shutdown_audio")
 	await get_tree().create_timer(0.2).timeout
