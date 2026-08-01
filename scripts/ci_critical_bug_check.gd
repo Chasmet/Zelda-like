@@ -49,6 +49,13 @@ func _run_check() -> void:
 	if portrait_rect.size.x < 150.0 or portrait_rect.size.y < 240.0:
 		_fail("le panneau CHK HERO est trop petit : %s" % portrait_rect, 88)
 		return
+	if not game.has_method("get_portrait_front_debug"):
+		_fail("la correction du chevalier de face n'est pas chargée", 93)
+		return
+	var portrait_state: Dictionary = game.call("get_portrait_front_debug")
+	if not bool(portrait_state.get("portrait_visible", false)) or not String(portrait_state.get("portrait_texture", "")).ends_with("chk_hero.png"):
+		_fail("le panneau n'affiche pas le portrait officiel de face : %s" % portrait_state, 94)
+		return
 	if not bool(state.get("water_label_centered", false)):
 		_fail("l'indicateur de nage reste coupé sur le côté", 89)
 		return
@@ -72,7 +79,7 @@ func _run_check() -> void:
 	player.global_position = original_position
 	player.velocity = Vector3.ZERO
 	player.is_swimming = false
-	print("CI CRITICAL BUG CHECK OK: eau profonde, nage et panneau CHK HERO restaurés")
+	print("CI CRITICAL BUG CHECK OK: eau profonde, nage et panneau CHK HERO de face restaurés")
 	if game.has_method("_shutdown_audio"):
 		game.call("_shutdown_audio")
 	await get_tree().create_timer(0.25).timeout
