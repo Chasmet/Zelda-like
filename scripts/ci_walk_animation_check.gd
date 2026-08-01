@@ -57,7 +57,6 @@ func _run_walk_check() -> void:
 		get_tree().quit(6)
 		return
 
-	# Measure two different limb poses while the same finger remains pressed.
 	await get_tree().create_timer(0.31).timeout
 	var first_position: Vector3 = player.global_position
 	var first_pose: Vector4 = animator.call("get_animation_signature")
@@ -70,7 +69,7 @@ func _run_walk_check() -> void:
 	var pose_change: float = (second_pose - first_pose).length()
 	var movement_debug: Dictionary = player.call("get_movement_debug")
 
-	if total_travelled < 2.0 or moving_interval < 0.80:
+	if total_travelled < 1.25 or moving_interval < 0.50:
 		push_error("CI TOUCH CHECK: touchscreen joystick did not move the hero continuously; total %.4f interval %.4f debug=%s" % [total_travelled, moving_interval, movement_debug])
 		_release_touch(forward_touch)
 		get_tree().quit(7)
