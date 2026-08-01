@@ -61,9 +61,6 @@ func _input(event):
 		_handle_screen_drag(event)
 
 
-# The parent implementation used the first touch position as the joystick
-# centre. A simple press therefore produced Vector2.ZERO and the hero stayed
-# still. All mobile touch handling is performed in _input() above instead.
 func _unhandled_input(_event):
 	pass
 
@@ -114,7 +111,6 @@ func _is_movement_area(position: Vector2, screen_size: Vector2) -> bool:
 
 
 func _is_camera_area(position: Vector2, screen_size: Vector2) -> bool:
-	# Keep the four action buttons and the map button fully clickable.
 	if position.x > screen_size.x * 0.70 and position.y > screen_size.y * 0.67:
 		return false
 	if position.x > screen_size.x * 0.78 and position.y < 105.0:
@@ -137,6 +133,7 @@ func _update_fixed_joystick(screen_position: Vector2):
 	if direction.length() < JOYSTICK_DEAD_ZONE:
 		direction = Vector2.ZERO
 	virtual_move = direction
+	_apply_movement_to_player()
 
 	if is_instance_valid(joystick_knob):
 		joystick_knob.position = Vector2(52.0, 52.0) + offset
@@ -144,9 +141,15 @@ func _update_fixed_joystick(screen_position: Vector2):
 		fixed_joystick_label.text = "AVANCE" if virtual_move.length() > JOYSTICK_DEAD_ZONE else "DÉPLACEMENT"
 
 
+func _apply_movement_to_player():
+	if is_instance_valid(player):
+		player.set_virtual_move(virtual_move)
+
+
 func _release_movement_touch():
 	move_touch_id = -1
 	virtual_move = Vector2.ZERO
+	_apply_movement_to_player()
 	if is_instance_valid(joystick_knob):
 		joystick_knob.position = Vector2(52.0, 52.0)
 	if is_instance_valid(fixed_joystick_label):
