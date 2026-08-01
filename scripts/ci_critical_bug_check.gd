@@ -14,12 +14,13 @@ func _run_check() -> void:
 	var started_at := Time.get_ticks_msec()
 	while (Time.get_ticks_msec() - started_at) < int(MAX_WAIT_SECONDS * 1000.0):
 		await get_tree().process_frame
-		if not game.has_method("get_critical_bugfix_debug") or not game.has_method("get_portrait_front_debug") or not game.has_method("get_spawn_safety_debug"):
+		if not game.has_method("get_critical_bugfix_debug") or not game.has_method("get_portrait_front_debug") or not game.has_method("get_spawn_safety_debug") or not game.has_method("get_coastline_polish_debug"):
 			continue
 		var pending: Dictionary = game.call("get_critical_bugfix_debug")
 		var pending_portrait: Dictionary = game.call("get_portrait_front_debug")
 		var pending_spawn: Dictionary = game.call("get_spawn_safety_debug")
-		if bool(pending.get("portrait_restored", false)) and bool(pending.get("water_material", false)) and bool(pending_portrait.get("portrait_front_applied", false)) and bool(pending_spawn.get("spawn_safety_applied", false)):
+		var pending_coastline: Dictionary = game.call("get_coastline_polish_debug")
+		if bool(pending.get("portrait_restored", false)) and bool(pending.get("water_material", false)) and bool(pending_portrait.get("portrait_front_applied", false)) and bool(pending_spawn.get("spawn_safety_applied", false)) and bool(pending_coastline.get("conforming_beach", false)):
 			break
 
 	if not game.has_method("get_critical_bugfix_debug"):
@@ -41,6 +42,16 @@ func _run_check() -> void:
 		return
 	if float(state.get("shore_sample", 99.0)) >= ocean_level:
 		_fail("la pente côtière ne passe pas sous la surface : %s" % state, 85)
+		return
+	if not game.has_method("get_coastline_polish_debug"):
+		_fail("la plage conforme V8.5 n'est pas chargée", 98)
+		return
+	var coastline_state: Dictionary = game.call("get_coastline_polish_debug")
+	if String(coastline_state.get("version", "")) != "0.8.5-littoral-conforme" or not bool(coastline_state.get("conforming_beach", false)):
+		_fail("la plage reste une plateforme plate : %s" % coastline_state, 99)
+		return
+	if int(coastline_state.get("beach_vertices", 0)) < 1500:
+		_fail("le maillage de plage est trop grossier : %s" % coastline_state, 100)
 		return
 	if not bool(state.get("portrait_restored", false)):
 		_fail("le panneau chevalier CHK HERO est absent", 86)
@@ -92,7 +103,7 @@ func _run_check() -> void:
 	player.global_position = original_position
 	player.velocity = Vector3.ZERO
 	player.is_swimming = false
-	print("CI CRITICAL BUG CHECK OK: eau, nage, CHK HERO de face et point de départ sécurisé")
+	print("CI CRITICAL BUG CHECK OK: eau, plage conforme, nage, CHK HERO et point de départ sécurisé")
 	if game.has_method("_shutdown_audio"):
 		game.call("_shutdown_audio")
 	await get_tree().create_timer(0.25).timeout
