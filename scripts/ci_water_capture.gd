@@ -26,19 +26,25 @@ func _capture_water() -> void:
 		return
 
 	var center: Vector3 = game.ZONE_CENTERS[0]
-	var beach_height: float = float(game.call("_zone_height", 0, 0.0, 37.0))
+	var water_state: Dictionary = game.call("get_critical_bugfix_debug") if game.has_method("get_critical_bugfix_debug") else {}
+	var ocean_level: float = float(water_state.get("ocean_level", -0.92))
 	player.velocity = Vector3.ZERO
-	player.global_position = Vector3(center.x, beach_height + 0.08, center.z + 37.0)
+	player.global_position = Vector3(center.x, ocean_level - 0.48, center.z + 56.0)
 	player.set("spawn_position", player.global_position)
+	for _frame in range(14):
+		await get_tree().physics_frame
+	if not bool(player.get("is_swimming")):
+		_fail("la capture n'a pas déclenché la nage réelle", 104)
+		return
 
 	var pivot := player.get_node_or_null("CameraPivot") as Node3D
 	var arm := player.get_node_or_null("CameraPivot/SpringArm") as SpringArm3D
 	if not is_instance_valid(pivot) or not is_instance_valid(arm):
 		_fail("la caméra troisième personne est absente", 102)
 		return
-	pivot.position = Vector3(0.0, 2.15, 0.0)
-	pivot.rotation = Vector3(-0.075, PI, 0.0)
-	arm.spring_length = 10.2
+	pivot.position = Vector3(0.0, 1.35, 0.0)
+	pivot.rotation = Vector3(-0.09, PI, 0.0)
+	arm.spring_length = 8.8
 
 	var visual := player.get_node_or_null("Visual") as Node3D
 	if is_instance_valid(visual):
@@ -46,17 +52,17 @@ func _capture_water() -> void:
 
 	if game.has_method("_update_live_hud"):
 		game.call("_update_live_hud")
+	if game.has_method("_update_water_depth_indicator"):
+		game.call("_update_water_depth_indicator")
 
-	await get_tree().create_timer(2.4).timeout
-	# Les bannières ont leurs propres temporisateurs : les masquer juste avant
-	# la capture garantit que la plage, la ligne d'écume et l'océan restent lisibles.
+	await get_tree().create_timer(1.8).timeout
 	var zone_banner = game.get("zone_banner")
 	var message_label = game.get("message_label")
 	if is_instance_valid(zone_banner):
 		zone_banner.visible = false
 	if is_instance_valid(message_label):
-		message_label.text = ""
-		message_label.visible = false
+		message_label.text = "NAGE ACTIVE • CHK HERO NE MARCHE PLUS SUR L'EAU"
+		message_label.visible = true
 	await RenderingServer.frame_post_draw
 	var output_path := ProjectSettings.globalize_path(SCREENSHOT_PATH)
 	DirAccess.make_dir_recursive_absolute(output_path.get_base_dir())
