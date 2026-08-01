@@ -14,11 +14,12 @@ func _run_check() -> void:
 	var started_at := Time.get_ticks_msec()
 	while (Time.get_ticks_msec() - started_at) < int(MAX_WAIT_SECONDS * 1000.0):
 		await get_tree().process_frame
-		if not game.has_method("get_critical_bugfix_debug") or not game.has_method("get_portrait_front_debug"):
+		if not game.has_method("get_critical_bugfix_debug") or not game.has_method("get_portrait_front_debug") or not game.has_method("get_spawn_safety_debug"):
 			continue
 		var pending: Dictionary = game.call("get_critical_bugfix_debug")
 		var pending_portrait: Dictionary = game.call("get_portrait_front_debug")
-		if bool(pending.get("portrait_restored", false)) and bool(pending.get("water_material", false)) and bool(pending_portrait.get("portrait_front_applied", false)):
+		var pending_spawn: Dictionary = game.call("get_spawn_safety_debug")
+		if bool(pending.get("portrait_restored", false)) and bool(pending.get("water_material", false)) and bool(pending_portrait.get("portrait_front_applied", false)) and bool(pending_spawn.get("spawn_safety_applied", false)):
 			break
 
 	if not game.has_method("get_critical_bugfix_debug"):
@@ -58,6 +59,16 @@ func _run_check() -> void:
 	if not bool(portrait_state.get("portrait_front_applied", false)) or not bool(portrait_state.get("portrait_is_official", false)) or not bool(portrait_state.get("portrait_visible", false)):
 		_fail("le panneau n'affiche pas le portrait officiel de face : %s" % portrait_state, 94)
 		return
+	if not game.has_method("get_spawn_safety_debug"):
+		_fail("la sécurité du point de départ V8.4 n'est pas chargée", 95)
+		return
+	var spawn_state: Dictionary = game.call("get_spawn_safety_debug")
+	if String(spawn_state.get("version", "")) != "0.8.4-spawn-securise" or not bool(spawn_state.get("spawn_safety_applied", false)):
+		_fail("CHK Hero peut encore apparaître dans le puits : %s" % spawn_state, 96)
+		return
+	if float(spawn_state.get("well_distance", 0.0)) < float(spawn_state.get("minimum_distance", 5.5)):
+		_fail("le point de départ reste trop proche du puits : %s" % spawn_state, 97)
+		return
 	if not bool(state.get("water_label_centered", false)):
 		_fail("l'indicateur de nage reste coupé sur le côté", 89)
 		return
@@ -81,7 +92,7 @@ func _run_check() -> void:
 	player.global_position = original_position
 	player.velocity = Vector3.ZERO
 	player.is_swimming = false
-	print("CI CRITICAL BUG CHECK OK: eau profonde, nage et panneau CHK HERO de face restaurés")
+	print("CI CRITICAL BUG CHECK OK: eau, nage, CHK HERO de face et point de départ sécurisé")
 	if game.has_method("_shutdown_audio"):
 		game.call("_shutdown_audio")
 	await get_tree().create_timer(0.25).timeout
