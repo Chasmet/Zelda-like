@@ -46,7 +46,6 @@ func _input(event: InputEvent) -> void:
 	super._input(event)
 
 
-# Texture procédurale différente pour chaque région.
 func _terrain_material(zone_index):
 	if terrain_material_cache.has(zone_index):
 		return terrain_material_cache[zone_index]
@@ -67,7 +66,6 @@ func _terrain_material(zone_index):
 	return material
 
 
-# Remplace le petit personnage carré du HUD par l'image exacte fournie.
 func _build_character_portrait(root):
 	var panel := ColorRect.new()
 	panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
@@ -194,7 +192,7 @@ func _add_lowpoly_tree(position: Vector3, zone: int, scale_value: float) -> void
 	tree.position = position
 	tree.scale = Vector3.ONE * scale_value
 	add_child(tree)
-	var trunk := _mesh_box(Vector3(0.55, 3.0, 0.55), Color(0.28, 0.15, 0.07))
+	var trunk: MeshInstance3D = _mesh_box(Vector3(0.55, 3.0, 0.55), Color(0.28, 0.15, 0.07)) as MeshInstance3D
 	trunk.position.y = 1.5
 	tree.add_child(trunk)
 	var crown := MeshInstance3D.new()
