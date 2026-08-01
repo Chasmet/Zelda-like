@@ -4,6 +4,8 @@ extends CharacterBody3D
 signal defeated(enemy)
 signal health_changed(current: int, maximum: int)
 
+const MODEL_ANIMATOR_SCRIPT = preload("res://scripts/procedural_animator.gd")
+
 @export var max_health: int = 70
 @export var move_speed: float = 3.2
 @export var damage: int = 12
@@ -19,6 +21,7 @@ var variant: int = 0
 var _gravity: float = 22.0
 var _visual: Node3D
 var _health_label: Label3D
+var _model_animator: ProceduralCharacterAnimator
 
 func _ready() -> void:
 	_gravity = float(ProjectSettings.get_setting("physics/3d/default_gravity", 22.0))
@@ -45,13 +48,12 @@ func _physics_process(delta: float) -> void:
 	stun_timer = maxf(0.0, stun_timer - delta)
 	if not is_on_floor():
 		velocity.y -= _gravity * delta
-
 	if not is_instance_valid(target) or health <= 0 or stun_timer > 0.0:
 		velocity.x = move_toward(velocity.x, 0.0, 10.0 * delta)
 		velocity.z = move_toward(velocity.z, 0.0, 10.0 * delta)
 		move_and_slide()
+		_update_model_animation()
 		return
-
 	var offset: Vector3 = target.global_position - global_position
 	var distance: float = offset.length()
 	if distance <= aggro_range:
@@ -70,11 +72,12 @@ func _physics_process(delta: float) -> void:
 			var home_direction: Vector3 = Vector3(home_offset.x, 0.0, home_offset.z).normalized()
 			velocity.x = home_direction.x * move_speed * 0.55
 			velocity.z = home_direction.z * move_speed * 0.55
+			rotation.y = lerp_angle(rotation.y, atan2(-home_direction.x, -home_direction.z), minf(1.0, 6.0 * delta))
 		else:
 			velocity.x = move_toward(velocity.x, 0.0, 8.0 * delta)
 			velocity.z = move_toward(velocity.z, 0.0, 8.0 * delta)
-
 	move_and_slide()
+	_update_model_animation()
 	if global_position.y < -10.0:
 		global_position = spawn_position
 
@@ -89,24 +92,43 @@ func take_damage(amount: int, from_position: Vector3 = Vector3.ZERO) -> void:
 		velocity += knockback * 6.0
 	_update_health_label()
 	health_changed.emit(health, max_health)
-	if is_instance_valid(_visual):
+	if is_instance_valid(_model_animator):
+		_model_animator.play_hit()
+	elif is_instance_valid(_visual):
 		var hit_tween: Tween = create_tween()
 		hit_tween.tween_property(_visual, "scale", Vector3(1.22, 0.78, 1.22), 0.07)
 		hit_tween.tween_property(_visual, "scale", Vector3.ONE, 0.14)
 	if health <= 0:
 		collision_layer = 0
 		collision_mask = 0
+		if is_instance_valid(_model_animator):
+			_model_animator.play_death()
 		defeated.emit(self)
 		var death_tween: Tween = create_tween()
-		death_tween.tween_property(self, "scale", Vector3.ZERO, 0.32)
+		death_tween.tween_interval(0.36)
+		death_tween.tween_property(self, "scale", Vector3.ZERO, 0.28)
 		await death_tween.finished
 		queue_free()
 
 func apply_asset(path: String) -> void:
-	if path.is_empty() or not is_instance_valid(_visual):
+	if path.is_empty() or not is_instance_valid(_visual) or not ResourceLoader.exists(path):
 		return
 	var loaded: Resource = load(path)
-	if loaded is Texture2D:
+	if loaded is PackedScene:
+		var packed: PackedScene = loaded as PackedScene
+		var scene_instance: Node = packed.instantiate()
+		if scene_instance is Node3D:
+			_clear_generated_visual()
+			var animator: ProceduralCharacterAnimator = MODEL_ANIMATOR_SCRIPT.new() as ProceduralCharacterAnimator
+			animator.name = "ImportedEnemyModel"
+			_visual.add_child(animator)
+			var node_3d: Node3D = scene_instance as Node3D
+			node_3d.name = "EnemyBlenderAsset"
+			node_3d.rotation.y = PI
+			animator.add_child(node_3d)
+			animator.bind_model(node_3d)
+			_model_animator = animator
+	elif loaded is Texture2D:
 		var texture: Texture2D = loaded as Texture2D
 		_clear_generated_visual()
 		var sprite: Sprite3D = Sprite3D.new()
@@ -117,15 +139,6 @@ func apply_asset(path: String) -> void:
 		sprite.position.y = 1.0
 		sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 		_visual.add_child(sprite)
-	elif loaded is PackedScene:
-		var packed: PackedScene = loaded as PackedScene
-		var scene_instance: Node = packed.instantiate()
-		if scene_instance is Node3D:
-			_clear_generated_visual()
-			var node_3d: Node3D = scene_instance as Node3D
-			node_3d.name = "ImportedEnemy"
-			node_3d.scale = Vector3.ONE * 0.75
-			_visual.add_child(node_3d)
 
 func _enemy_frame(texture: Texture2D) -> Texture2D:
 	var width: int = texture.get_width()
@@ -158,7 +171,9 @@ func _attack_player() -> void:
 	attack_timer = 1.15
 	if target.has_method("take_damage"):
 		target.call("take_damage", damage, global_position)
-	if is_instance_valid(_visual):
+	if is_instance_valid(_model_animator):
+		_model_animator.play_attack()
+	elif is_instance_valid(_visual):
 		var tween: Tween = create_tween()
 		tween.tween_property(_visual, "position:z", -0.35, 0.10)
 		tween.tween_property(_visual, "position:z", 0.0, 0.18)
@@ -171,11 +186,9 @@ func _build_body() -> void:
 	collider.shape = capsule
 	collider.position.y = 0.8
 	add_child(collider)
-
 	_visual = Node3D.new()
 	_visual.name = "Visual"
 	add_child(_visual)
-
 	var body: MeshInstance3D = MeshInstance3D.new()
 	body.name = "GeneratedBody"
 	var body_mesh: CapsuleMesh = CapsuleMesh.new()
@@ -185,12 +198,10 @@ func _build_body() -> void:
 	body.mesh = body_mesh
 	body.position.y = 0.82
 	_visual.add_child(body)
-
 	var left_eye: MeshInstance3D = _make_eye(-0.18)
 	var right_eye: MeshInstance3D = _make_eye(0.18)
 	_visual.add_child(left_eye)
 	_visual.add_child(right_eye)
-
 	_health_label = Label3D.new()
 	_health_label.position = Vector3(0.0, 2.15, 0.0)
 	_health_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -200,20 +211,26 @@ func _build_body() -> void:
 	add_child(_health_label)
 
 func _make_eye(x_position: float) -> MeshInstance3D:
-	var eye: MeshInstance3D = MeshInstance3D.new()
-	eye.name = "GeneratedEye"
+	var eye_node: MeshInstance3D = MeshInstance3D.new()
+	eye_node.name = "GeneratedEye"
 	var mesh: SphereMesh = SphereMesh.new()
 	mesh.radius = 0.07
 	mesh.height = 0.14
-	var material: StandardMaterial3D = StandardMaterial3D.new()
-	material.albedo_color = Color(1.0, 0.9, 0.2)
-	material.emission_enabled = true
-	material.emission = Color(1.0, 0.18, 0.02)
-	material.emission_energy_multiplier = 2.5
-	mesh.material = material
-	eye.mesh = mesh
-	eye.position = Vector3(x_position, 1.25, -0.43)
-	return eye
+	var eye_material: StandardMaterial3D = StandardMaterial3D.new()
+	eye_material.albedo_color = Color(1.0, 0.9, 0.2)
+	eye_material.emission_enabled = true
+	eye_material.emission = Color(1.0, 0.18, 0.02)
+	eye_material.emission_energy_multiplier = 2.5
+	mesh.material = eye_material
+	eye_node.mesh = mesh
+	eye_node.position = Vector3(x_position, 1.25, -0.43)
+	return eye_node
+
+func _update_model_animation() -> void:
+	if not is_instance_valid(_model_animator):
+		return
+	var horizontal_speed: float = Vector2(velocity.x, velocity.z).length()
+	_model_animator.set_locomotion(horizontal_speed / maxf(move_speed, 0.01), not is_on_floor())
 
 func _recolor_generated() -> void:
 	for child: Node in _visual.get_children():
@@ -224,21 +241,23 @@ func _recolor_generated() -> void:
 
 func _enemy_material() -> StandardMaterial3D:
 	var palette: Array[Color] = [
-		Color(0.38, 0.08, 0.08),
-		Color(0.18, 0.34, 0.09),
-		Color(0.24, 0.08, 0.40),
-		Color(0.05, 0.30, 0.35)
+		Color(0.38, 0.08, 0.08), Color(0.18, 0.34, 0.09),
+		Color(0.24, 0.08, 0.40), Color(0.05, 0.30, 0.35),
+		Color(0.33, 0.18, 0.08), Color(0.30, 0.32, 0.36),
+		Color(0.08, 0.34, 0.48)
 	]
-	var material: StandardMaterial3D = StandardMaterial3D.new()
-	material.albedo_color = palette[variant % palette.size()]
-	material.roughness = 0.75
-	return material
+	var enemy_material: StandardMaterial3D = StandardMaterial3D.new()
+	enemy_material.albedo_color = palette[variant % palette.size()]
+	enemy_material.roughness = 0.75
+	return enemy_material
 
 func _clear_generated_visual() -> void:
 	for child: Node in _visual.get_children():
 		var child_name: String = String(child.name)
 		if child_name.begins_with("Generated") or child_name.begins_with("Imported"):
+			_visual.remove_child(child)
 			child.queue_free()
+	_model_animator = null
 
 func _update_health_label() -> void:
 	if is_instance_valid(_health_label):
