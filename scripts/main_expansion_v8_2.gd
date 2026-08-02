@@ -3,6 +3,26 @@ extends "res://scripts/main_expansion_v8.gd"
 const SNOW_SUMMIT_HEIGHT := 28.0
 
 
+func _wait_for_blender_placeholder_swap() -> void:
+	# Compatibilité avec la couche mobile historique : le modèle généré par
+	# Blender est déjà appliqué au spawn, mais l'ancien chargeur attend cette
+	# coroutine avant d'autoriser les contrôles et les tests de déplacement.
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	if not is_instance_valid(player):
+		return
+
+	var visual: Node = player.get_node_or_null("Visual")
+	var imported_model: Node = null
+	if is_instance_valid(visual):
+		imported_model = visual.get_node_or_null("ImportedHeroModel")
+
+	if not is_instance_valid(imported_model) and ResourceLoader.exists(HERO_MODEL):
+		player.apply_asset(HERO_MODEL)
+		await get_tree().process_frame
+
+
 func _build_ocean_physics() -> void:
 	super._build_ocean_physics()
 
