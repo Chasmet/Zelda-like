@@ -49,6 +49,23 @@ func _relocate_zone_node(
 		node.position.y += SNOW_SUMMIT_HEIGHT
 
 
+func _map_source_position_to_region(
+	world_position: Vector3,
+	source_index: int,
+	region_index: int
+) -> Vector3:
+	var mapped_position: Vector3 = super._map_source_position_to_region(
+		world_position,
+		source_index,
+		region_index
+	)
+	# Les gardiens, anciennes sauvegardes et autres éléments déplacés après la
+	# construction doivent monter avec le terrain du Sommet enneigé.
+	if region_index == 9:
+		mapped_position.y += SNOW_SUMMIT_HEIGHT
+	return mapped_position
+
+
 func _expanded_height(
 	region_index: int,
 	world_x: float,
