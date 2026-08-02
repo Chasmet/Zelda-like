@@ -62,31 +62,56 @@ func _process_water_flight(delta: float) -> void:
 	invulnerability = maxf(0.0, invulnerability - delta)
 	water_flight_remaining = maxf(0.0, water_flight_remaining - delta)
 
-	var input_vector: Vector2 = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	var input_vector: Vector2 = Input.get_vector(
+		"move_left",
+		"move_right",
+		"move_forward",
+		"move_back"
+	)
 	if virtual_move.length() > 0.08:
 		input_vector = virtual_move.limit_length(1.0)
 
-	var forward := Vector3.FORWARD
-	var right := Vector3.RIGHT
+	var forward: Vector3 = Vector3.FORWARD
+	var right: Vector3 = Vector3.RIGHT
 	if is_instance_valid(_camera):
 		forward = -_camera.global_transform.basis.z
 		right = _camera.global_transform.basis.x
 	forward.y = 0.0
 	right.y = 0.0
-	forward = forward.normalized() if forward.length_squared() > 0.0001 else Vector3.FORWARD
-	right = right.normalized() if right.length_squared() > 0.0001 else Vector3.RIGHT
+	forward = (
+		forward.normalized()
+		if forward.length_squared() > 0.0001
+		else Vector3.FORWARD
+	)
+	right = (
+		right.normalized()
+		if right.length_squared() > 0.0001
+		else Vector3.RIGHT
+	)
 
-	var direction := right * input_vector.x + forward * -input_vector.y
+	var direction: Vector3 = right * input_vector.x + forward * -input_vector.y
 	if direction.length_squared() > 0.0001:
 		direction = direction.normalized()
 
-	var target_horizontal := direction * water_flight_speed
-	velocity.x = move_toward(velocity.x, target_horizontal.x, water_flight_acceleration * delta)
-	velocity.z = move_toward(velocity.z, target_horizontal.z, water_flight_acceleration * delta)
+	var target_horizontal: Vector3 = direction * water_flight_speed
+	velocity.x = move_toward(
+		velocity.x,
+		target_horizontal.x,
+		water_flight_acceleration * delta
+	)
+	velocity.z = move_toward(
+		velocity.z,
+		target_horizontal.z,
+		water_flight_acceleration * delta
+	)
 
-	var height_error := _flight_target_y - global_position.y
-	var target_vertical := clampf(height_error * 2.2, -2.2, 6.8)
-	velocity.y = move_toward(velocity.y, target_vertical, water_flight_acceleration * delta)
+	var height_error: float = _flight_target_y - global_position.y
+	var target_vertical: float = clampf(height_error * 2.2, -2.2, 6.8)
+	velocity.y = move_toward(
+		velocity.y,
+		target_vertical,
+		water_flight_acceleration * delta
+	)
 
 	if is_instance_valid(_visual) and direction.length_squared() > 0.01:
 		_visual.rotation.y = lerp_angle(
@@ -105,7 +130,11 @@ func _process_water_flight(delta: float) -> void:
 	_last_position_after_slide = global_position
 	_last_slide_count = get_slide_collision_count()
 
-	if is_on_floor() and global_position.y > water_surface_y + 0.45 and water_flight_remaining < water_flight_duration - 0.25:
+	if (
+		is_on_floor()
+		and global_position.y > water_surface_y + 0.45
+		and water_flight_remaining < water_flight_duration - 0.25
+	):
 		last_safe_ground_position = global_position
 		_finish_water_flight()
 		return
@@ -120,8 +149,11 @@ func _process_water_flight(delta: float) -> void:
 		return
 
 	if is_instance_valid(_model_animator):
-		var horizontal_speed := Vector2(velocity.x, velocity.z).length()
-		_model_animator.set_locomotion(horizontal_speed / maxf(water_flight_speed, 0.01), true)
+		var horizontal_speed: float = Vector2(velocity.x, velocity.z).length()
+		_model_animator.set_locomotion(
+			horizontal_speed / maxf(water_flight_speed, 0.01),
+			true
+		)
 
 	water_flight_changed.emit(true, water_flight_remaining)
 
