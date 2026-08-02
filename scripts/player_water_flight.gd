@@ -1,6 +1,7 @@
 extends "res://scripts/player_water.gd"
 
 const V8_MODEL_ANIMATOR = preload("res://scripts/procedural_animator_v8.gd")
+const LAND_DODGE_MIN_SPEED := 9.2
 
 signal water_flight_changed(active: bool, remaining: float)
 
@@ -76,6 +77,38 @@ func set_virtual_move(value: Vector2) -> void:
 	if virtual_move.length() <= 0.08:
 		velocity.x = 0.0
 		velocity.z = 0.0
+
+
+func dodge() -> void:
+	# Après une sortie de l'eau, la sonde aquatique peut conserver son ancien
+	# état pendant quelques images. Le contact réel avec le sol doit toujours
+	# avoir priorité afin que l'esquive reste une roulade terrestre.
+	var grounded: bool = is_on_floor() and global_position.y > water_surface_y + 0.35
+	if grounded and not water_flight_active:
+		in_water = false
+		underwater = false
+		_open_water_column = false
+
+	var cooldown_before: float = dodge_cooldown
+	super.dodge()
+
+	if not grounded or not can_control or dodge_cooldown <= cooldown_before:
+		return
+
+	var horizontal_speed: float = Vector2(velocity.x, velocity.z).length()
+	if horizontal_speed >= LAND_DODGE_MIN_SPEED:
+		return
+
+	var direction: Vector3 = -global_transform.basis.z
+	if is_instance_valid(_visual):
+		direction = -_visual.global_transform.basis.z
+	direction.y = 0.0
+	if direction.length_squared() <= 0.0001:
+		direction = Vector3.FORWARD
+	else:
+		direction = direction.normalized()
+	velocity.x = direction.x * LAND_DODGE_MIN_SPEED
+	velocity.z = direction.z * LAND_DODGE_MIN_SPEED
 
 
 func _physics_process(delta: float) -> void:
