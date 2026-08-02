@@ -53,7 +53,7 @@ jobs:
           STATUS=$?
           set -e
           cat /tmp/godot-runtime.log
-          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|ERROR:.*main_mobile_final|ERROR:.*procedural_animator" /tmp/godot-runtime.log; then
+          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|ERROR:.*main_mobile_final|ERROR:.*procedural_animator|ERROR:.*ci_full_playthrough" /tmp/godot-runtime.log; then
             exit 1
           fi
           if [ "$STATUS" -ne 0 ] && [ "$STATUS" -ne 124 ]; then
@@ -76,6 +76,23 @@ jobs:
             exit "$STATUS"
           fi
           grep -q "CI TOUCH CHECK OK" /tmp/godot-touch.log
+
+      - name: Play all 10 zones and restore partial saves
+        run: |
+          GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
+          set +e
+          timeout 210s xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path . -- --ci-full-playthrough > /tmp/godot-playthrough.log 2>&1
+          STATUS=$?
+          set -e
+          cat /tmp/godot-playthrough.log
+          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|CI FULL PLAYTHROUGH:" /tmp/godot-playthrough.log; then
+            exit 1
+          fi
+          if [ "$STATUS" -ne 0 ]; then
+            echo "Full playthrough exited with status $STATUS"
+            exit "$STATUS"
+          fi
+          grep -q "CI FULL PLAYTHROUGH OK: zones=10 guardians=20 last_zone=10 save_restore=OK" /tmp/godot-playthrough.log
 
       - name: Capture the fully loaded interface
         run: |
@@ -122,9 +139,10 @@ jobs:
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_mobile_final.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/procedural_animator.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_walk_animation_check.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_full_playthrough.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/generated_models/hero_knight.glb'
           mkdir -p build/final
-          TARGET="build/final/ZeldaLike-Cheikh-Mobile-V4-debug.apk"
+          TARGET="build/final/ZeldaLike-Full-Playthrough-V5-debug.apk"
           if [ "$(realpath "$APK_PATH")" != "$(realpath -m "$TARGET")" ]; then
             cp "$APK_PATH" "$TARGET"
           fi
@@ -135,9 +153,9 @@ jobs:
       - name: Upload Android APK
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Cheikh-Mobile-V4-Android
+          name: ZeldaLike-Full-Playthrough-V5-Android
           path: |
-            build/final/ZeldaLike-Cheikh-Mobile-V4-debug.apk
+            build/final/ZeldaLike-Full-Playthrough-V5-debug.apk
             build/final/SHA256.txt
           if-no-files-found: error
           retention-days: 30
@@ -145,7 +163,7 @@ jobs:
       - name: Upload visual validation
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Cheikh-Mobile-V4-Validation
+          name: ZeldaLike-Full-Playthrough-V5-Validation
           path: build/validation/HUD-Carte-Portrait.png
           if-no-files-found: error
           retention-days: 30
@@ -153,7 +171,7 @@ jobs:
       - name: Upload generated Blender models
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Cheikh-Mobile-V4-Models
+          name: ZeldaLike-Full-Playthrough-V5-Models
           path: generated_models/*.glb
           if-no-files-found: error
           retention-days: 30
