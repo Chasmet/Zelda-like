@@ -27,12 +27,12 @@ func _build_ocean_physics() -> void:
 	super._build_ocean_physics()
 
 	if is_instance_valid(ocean_swim_volume) and ocean_swim_volume.get_child_count() > 0:
-		var volume_collision = ocean_swim_volume.get_child(0)
+		var volume_collision: Node = ocean_swim_volume.get_child(0)
 		if volume_collision is CollisionShape3D:
 			volume_collision.name = "WaterVolumeCollision"
 
 	if is_instance_valid(ocean_floor):
-		for child in ocean_floor.get_children():
+		for child: Node in ocean_floor.get_children():
 			if child is CollisionShape3D:
 				child.name = "SeabedCollision"
 			elif child is MeshInstance3D:
@@ -69,12 +69,12 @@ func _recover_invalid_expanded_position() -> void:
 	if not is_instance_valid(player):
 		return
 
-	var position_2d := Vector2(
+	var position_2d: Vector2 = Vector2(
 		player.global_position.x,
 		player.global_position.z
 	)
-	var outside_world := not EXP_OCEAN_BOUNDS.has_point(position_2d)
-	var below_world := player.global_position.y < EXP_OCEAN_BOTTOM_Y - 1.0
+	var outside_world: bool = not EXP_OCEAN_BOUNDS.has_point(position_2d)
+	var below_world: bool = float(player.global_position.y) < float(EXP_OCEAN_BOTTOM_Y) - 1.0
 	if not outside_world and not below_world:
 		return
 
@@ -84,7 +84,7 @@ func _recover_invalid_expanded_position() -> void:
 	var center: Vector3 = REGION_CENTERS[EXP_START_REGION]
 	var spawn_x: float = center.x
 	var spawn_z: float = center.z + 10.0
-	var recovered_position := Vector3(
+	var recovered_position: Vector3 = Vector3(
 		spawn_x,
 		_expanded_height(EXP_START_REGION, spawn_x, spawn_z) + 0.55,
 		spawn_z
@@ -92,8 +92,7 @@ func _recover_invalid_expanded_position() -> void:
 	player.global_position = recovered_position
 	player.velocity = Vector3.ZERO
 	player.set_spawn(recovered_position)
-	if "last_safe_ground_position" in player:
-		player.set("last_safe_ground_position", recovered_position)
+	player.set("last_safe_ground_position", recovered_position)
 	current_zone = EXP_START_REGION
 
 
