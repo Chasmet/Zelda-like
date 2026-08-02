@@ -1,6 +1,6 @@
 [gd_scene load_steps=7 format=3]
 
-[ext_resource type="Script" path="res://scripts/main_expansion_v8.gd" id="1_main"]
+[ext_resource type="Script" path="res://scripts/main_expansion_v8_1.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/portrait_hud_adjuster.gd" id="2_portrait"]
 [ext_resource type="Script" path="res://scripts/ci_hud_capture.gd" id="3_capture"]
 [ext_resource type="Script" path="res://scripts/ci_walk_animation_check.gd" id="4_walk"]
