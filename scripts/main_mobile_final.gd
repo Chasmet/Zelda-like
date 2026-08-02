@@ -267,3 +267,100 @@ func _release_movement_touch():
 		joystick_knob.position = Vector2(52.0, 52.0)
 	if is_instance_valid(fixed_joystick_label):
 		fixed_joystick_label.text = "DÉPLACEMENT"
+
+
+# Restore saved progress without duplicating guardians in partially completed
+# zones. Older builds spawned every guardian before applying the saved counter,
+# which could leave an impossible extra enemy after restarting the game.
+func _load_progress():
+	var config := ConfigFile.new()
+	if config.load(SAVE_PATH) != OK:
+		return
+
+	var saved_remaining = config.get_value("world", "remaining", zone_remaining)
+	if saved_remaining is Array and saved_remaining.size() == zone_remaining.size():
+		for zone_index in range(zone_remaining.size()):
+			zone_remaining[zone_index] = clampi(int(saved_remaining[zone_index]), 0, int(zone_total[zone_index]))
+
+	var saved_completed = config.get_value("world", "completed", zone_completed)
+	if saved_completed is Array and saved_completed.size() == zone_completed.size():
+		for zone_index in range(zone_completed.size()):
+			zone_completed[zone_index] = bool(saved_completed[zone_index])
+
+	for zone_index in range(zone_remaining.size()):
+		if zone_index == START_ZONE:
+			zone_remaining[zone_index] = 0
+			zone_completed[zone_index] = true
+		elif bool(zone_completed[zone_index]):
+			zone_remaining[zone_index] = 0
+		else:
+			zone_completed[zone_index] = int(zone_remaining[zone_index]) == 0
+
+	_reconcile_loaded_enemies()
+	total_defeated = _count_defeated_from_progress()
+	game_complete = _all_hostile_zones_complete()
+
+	var saved_position = config.get_value("player", "position", player.global_position)
+	if saved_position is Vector3 and saved_position.is_finite():
+		player.global_position = saved_position
+		player.set_spawn(saved_position)
+	player.health = clampi(int(config.get_value("player", "health", player.max_health)), 1, player.max_health)
+	player.health_changed.emit(player.health, player.max_health)
+	current_zone = _nearest_zone_for_position(player.global_position)
+
+
+func _reconcile_loaded_enemies():
+	var enemies_by_zone := {}
+	for zone_index in range(zone_remaining.size()):
+		enemies_by_zone[zone_index] = []
+
+	for enemy in enemies.duplicate():
+		if not is_instance_valid(enemy) or enemy.is_queued_for_deletion():
+			enemies.erase(enemy)
+			continue
+		var enemy_zone := int(enemy.get_meta("zone_index", -1))
+		if enemy_zone < 0 or enemy_zone >= zone_remaining.size():
+			enemies.erase(enemy)
+			enemy.queue_free()
+			continue
+		enemies_by_zone[enemy_zone].append(enemy)
+
+	for zone_index in range(zone_remaining.size()):
+		var desired_count := 0 if bool(zone_completed[zone_index]) else clampi(int(zone_remaining[zone_index]), 0, int(zone_total[zone_index]))
+		var live_enemies: Array = enemies_by_zone[zone_index]
+		while live_enemies.size() > desired_count:
+			var extra_enemy = live_enemies.pop_back()
+			enemies.erase(extra_enemy)
+			if is_instance_valid(extra_enemy):
+				extra_enemy.queue_free()
+
+		# A corrupted old save must never request more enemies than are actually
+		# present, otherwise the objective can become impossible to finish.
+		if live_enemies.size() < desired_count:
+			desired_count = live_enemies.size()
+		zone_remaining[zone_index] = desired_count
+		zone_completed[zone_index] = zone_index == START_ZONE or desired_count == 0
+
+
+func _count_defeated_from_progress() -> int:
+	var defeated_count := 0
+	for zone_index in range(zone_total.size()):
+		if zone_index == START_ZONE:
+			continue
+		defeated_count += maxi(0, int(zone_total[zone_index]) - int(zone_remaining[zone_index]))
+	return defeated_count
+
+
+func _nearest_zone_for_position(world_position: Vector3) -> int:
+	var nearest_zone := START_ZONE
+	var nearest_distance := INF
+	for zone_index in range(ZONE_CENTERS.size()):
+		var center: Vector3 = ZONE_CENTERS[zone_index]
+		var dx := world_position.x - center.x
+		var dz := world_position.z - center.z
+		var dy := world_position.y - center.y
+		var distance := dx * dx + dz * dz + dy * dy * 4.0
+		if distance < nearest_distance:
+			nearest_distance = distance
+			nearest_zone = zone_index
+	return nearest_zone
