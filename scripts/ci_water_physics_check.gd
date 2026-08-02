@@ -52,7 +52,7 @@ func _run_physics_check() -> void:
 	# Entrée dans l'eau et nage horizontale sans chute libre.
 	player.global_position = Vector3(0.0, surface_y - 1.15, 96.0)
 	player.velocity = Vector3.ZERO
-	player.set_virtual_move(Vector2.ZERO)
+	_set_game_move(game, player, Vector2.ZERO)
 	await _wait_physics_frames(10)
 	water = player.get_water_debug()
 	if not bool(water.get("in_water", false)) or bool(water.get("underwater", false)):
@@ -60,9 +60,9 @@ func _run_physics_check() -> void:
 		return
 
 	var swim_start: Vector3 = player.global_position
-	player.set_virtual_move(Vector2(0.0, -1.0))
+	_set_game_move(game, player, Vector2(0.0, -1.0))
 	await _wait_physics_frames(50)
-	player.set_virtual_move(Vector2.ZERO)
+	_set_game_move(game, player, Vector2.ZERO)
 	var swim_end: Vector3 = player.global_position
 	var swim_distance := Vector2(swim_end.x - swim_start.x, swim_end.z - swim_start.z).length()
 	if swim_distance < 1.8 or not swim_end.is_finite():
@@ -137,15 +137,15 @@ func _run_physics_check() -> void:
 	# Retour sur terre : marche, pente, saut, esquive et arrêt.
 	player.global_position = safe_position
 	player.velocity = Vector3.ZERO
-	player.set_virtual_move(Vector2.ZERO)
+	_set_game_move(game, player, Vector2.ZERO)
 	if not await _wait_for_floor(player, 3.0):
 		_fail("le héros ne retrouve pas une collision de sol stable", 87)
 		return
 
 	var walk_start: Vector3 = player.global_position
-	player.set_virtual_move(Vector2(0.0, -1.0))
+	_set_game_move(game, player, Vector2(0.0, -1.0))
 	await _wait_physics_frames(42)
-	player.set_virtual_move(Vector2.ZERO)
+	_set_game_move(game, player, Vector2.ZERO)
 	var walk_distance := Vector2(player.global_position.x - walk_start.x, player.global_position.z - walk_start.z).length()
 	if walk_distance < 1.4 or not player.global_position.is_finite():
 		_fail("la marche terrestre ou les collisions de pente sont bloquées", 88)
@@ -191,6 +191,11 @@ func _run_physics_check() -> void:
 	print("CI WATER PHYSICS OK: swim=OK dive=OK surface=OK seabed=OK oxygen=OK walk=OK jump=OK dodge=OK respawn=OK")
 	_remove_test_save()
 	get_tree().quit()
+
+
+func _set_game_move(game, player, value: Vector2) -> void:
+	game.set("virtual_move", value)
+	player.set_virtual_move(value)
 
 
 func _wait_for_loaded_world(game):
