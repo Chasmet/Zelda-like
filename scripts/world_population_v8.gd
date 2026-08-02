@@ -86,10 +86,10 @@ func get_collected_count() -> int:
 
 func set_collected_count(value: int) -> void:
 	collected_count = clampi(value, 0, region_centers.size() * COLLECTIBLES_PER_REGION)
-	var remaining := collected_count
+	var remaining: int = collected_count
 	for index in range(collectible_entries.size()):
 		var item: Dictionary = collectible_entries[index]
-		var collected := remaining > 0
+		var collected: bool = remaining > 0
 		item["collected"] = collected
 		var node: MeshInstance3D = item["node"]
 		node.visible = not collected
@@ -109,15 +109,15 @@ func _build_population() -> void:
 
 		var people: Array = []
 		for npc_index in range(NPCS_PER_REGION):
-			var angle := TAU * float(npc_index) / float(NPCS_PER_REGION) + float(region_index) * 0.23
-			var radius := 12.0 + float((npc_index * 13 + region_index * 7) % 46)
-			var home := Vector3(
+			var angle: float = TAU * float(npc_index) / float(NPCS_PER_REGION) + float(region_index) * 0.23
+			var radius: float = 12.0 + float((npc_index * 13 + region_index * 7) % 46)
+			var home: Vector3 = Vector3(
 				region_centers[region_index].x + cos(angle) * radius,
 				0.0,
 				region_centers[region_index].z + sin(angle) * radius * 0.82
 			)
 			home.y = world._expanded_height(region_index, home.x, home.z) + 1.0
-			var person := {
+			var person: Dictionary = {
 				"home": home,
 				"position": home,
 				"phase": float(npc_index) * 0.71 + float(region_index),
@@ -148,7 +148,7 @@ func _create_npc_mesh(region_index: int) -> CapsuleMesh:
 
 
 func _npc_name(region_index: int, npc_index: int) -> String:
-	var jobs := [
+	var jobs: Array = [
 		["Pêcheur", "Gardienne du phare", "Marchande"],
 		["Bûcheron", "Herboriste", "Éclaireuse"],
 		["Guide", "Mineur", "Alpiniste"],
@@ -168,7 +168,7 @@ func _update_population(current_region: int) -> void:
 		var entry: Dictionary = npc_regions[region_index]
 		var visual: MultiMeshInstance3D = entry["visual"]
 		var people: Array = entry["people"]
-		var close_region := (
+		var close_region: bool = (
 			region_index == current_region
 			or region_centers[region_index].distance_to(player.global_position) < 195.0
 		)
@@ -179,10 +179,10 @@ func _update_population(current_region: int) -> void:
 
 		for npc_index in range(people.size()):
 			var person: Dictionary = people[npc_index]
-			var phase := float(person["phase"])
+			var phase: float = float(person["phase"])
 			var home: Vector3 = person["home"]
-			var routine_radius := 3.5 + float(npc_index % 5)
-			var position := Vector3(
+			var routine_radius: float = 3.5 + float(npc_index % 5)
+			var position: Vector3 = Vector3(
 				home.x + cos(_clock * (0.22 + float(npc_index % 3) * 0.04) + phase) * routine_radius,
 				home.y,
 				home.z + sin(_clock * (0.19 + float(npc_index % 4) * 0.03) + phase) * routine_radius
@@ -203,8 +203,8 @@ func _build_points_of_interest() -> void:
 	poi_entries.clear()
 	for region_index in range(region_centers.size()):
 		for poi_index in range(2):
-			var angle := float(poi_index) * PI + 0.72 + float(region_index) * 0.13
-			var position := region_centers[region_index] + Vector3(
+			var angle: float = float(poi_index) * PI + 0.72 + float(region_index) * 0.13
+			var position: Vector3 = region_centers[region_index] + Vector3(
 				cos(angle) * 39.0,
 				0.0,
 				sin(angle) * 34.0
@@ -237,8 +237,8 @@ func _build_collectibles() -> void:
 	collectible_entries.clear()
 	for region_index in range(region_centers.size()):
 		for item_index in range(COLLECTIBLES_PER_REGION):
-			var angle := float(item_index) * TAU / float(COLLECTIBLES_PER_REGION) + float(region_index) * 0.41
-			var position := region_centers[region_index] + Vector3(
+			var angle: float = float(item_index) * TAU / float(COLLECTIBLES_PER_REGION) + float(region_index) * 0.41
+			var position: Vector3 = region_centers[region_index] + Vector3(
 				cos(angle) * (22.0 + item_index * 13.0),
 				0.0,
 				sin(angle) * (20.0 + item_index * 11.0)
@@ -289,10 +289,10 @@ func _try_talk_to_nearest_npc(current_region: int) -> bool:
 		return false
 
 	var people: Array = npc_regions[current_region]["people"]
-	var best_distance := 4.8
+	var best_distance: float = 4.8
 	var selected: Dictionary = {}
 	for person in people:
-		var distance := player.global_position.distance_to(person["position"])
+		var distance: float = player.global_position.distance_to(person["position"])
 		if distance < best_distance:
 			best_distance = distance
 			selected = person
@@ -305,12 +305,12 @@ func _try_talk_to_nearest_npc(current_region: int) -> bool:
 
 
 func _try_interact_with_poi(current_region: int) -> bool:
-	var best_distance := 6.0
+	var best_distance: float = 6.0
 	var selected: Dictionary = {}
 	for poi in poi_entries:
 		if int(poi["region"]) != current_region:
 			continue
-		var distance := player.global_position.distance_to(poi["position"])
+		var distance: float = player.global_position.distance_to(poi["position"])
 		if distance < best_distance:
 			best_distance = distance
 			selected = poi
