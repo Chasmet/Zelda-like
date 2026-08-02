@@ -69,6 +69,15 @@ func get_water_debug() -> Dictionary:
 	return result
 
 
+func set_virtual_move(value: Vector2) -> void:
+	super.set_virtual_move(value)
+	# Sur mobile, relâcher le joystick doit arrêter immédiatement l'impulsion
+	# horizontale. Cela évite la glissade résiduelle sur les grands terrains.
+	if virtual_move.length() <= 0.08:
+		velocity.x = 0.0
+		velocity.z = 0.0
+
+
 func _physics_process(delta: float) -> void:
 	if water_flight_active:
 		_process_water_flight(delta)
