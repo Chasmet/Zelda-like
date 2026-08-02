@@ -60,6 +60,43 @@ func _expanded_height(
 	return height
 
 
+func _load_progress() -> void:
+	super._load_progress()
+	_recover_invalid_expanded_position()
+
+
+func _recover_invalid_expanded_position() -> void:
+	if not is_instance_valid(player):
+		return
+
+	var position_2d := Vector2(
+		player.global_position.x,
+		player.global_position.z
+	)
+	var outside_world := not EXP_OCEAN_BOUNDS.has_point(position_2d)
+	var below_world := player.global_position.y < EXP_OCEAN_BOTTOM_Y - 1.0
+	if not outside_world and not below_world:
+		return
+
+	# Certaines sauvegardes transitoires sans numéro de version pouvaient être
+	# migrées deux fois, plaçant le héros au-delà de l'océan puis dans le vide.
+	# On le replace sur la région de départ au lieu de le laisser tomber.
+	var center: Vector3 = REGION_CENTERS[EXP_START_REGION]
+	var spawn_x: float = center.x
+	var spawn_z: float = center.z + 10.0
+	var recovered_position := Vector3(
+		spawn_x,
+		_expanded_height(EXP_START_REGION, spawn_x, spawn_z) + 0.55,
+		spawn_z
+	)
+	player.global_position = recovered_position
+	player.velocity = Vector3.ZERO
+	player.set_spawn(recovered_position)
+	if "last_safe_ground_position" in player:
+		player.set("last_safe_ground_position", recovered_position)
+	current_zone = EXP_START_REGION
+
+
 func _build_portals() -> void:
 	capital_portal_position = REGION_CENTERS[8] + Vector3(0.0, 2.0, 0.0)
 	sky_portal_position = REGION_CENTERS[9] + Vector3(0.0, SNOW_SUMMIT_HEIGHT + 2.0, 0.0)
