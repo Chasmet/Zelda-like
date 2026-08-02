@@ -329,7 +329,7 @@ func _add_region_identity(region_index: int) -> void:
 		Vector3(-67.0, 0.0, 59.0),
 		Vector3(67.0, 0.0, 59.0)
 	]:
-		var world_position := center + corner
+		var world_position: Vector3 = center + corner
 		world_position.y = _expanded_height(
 			region_index,
 			world_position.x,
@@ -355,8 +355,8 @@ func _add_region_detail_clusters(region_index: int) -> void:
 		for item_index in range(count):
 			var angle := float(item_index) * 2.399963 + float(variant) * 0.71
 			var radius := 14.0 + float((item_index * 17 + variant * 9) % 49)
-			var x := REGION_CENTERS[region_index].x + cos(angle) * radius
-			var z := (
+			var x: float = REGION_CENTERS[region_index].x + cos(angle) * radius
+			var z: float = (
 				REGION_CENTERS[region_index].z
 				+ sin(angle) * radius * 0.88
 			)
@@ -455,7 +455,7 @@ func _create_region_texture(region_index: int, variant: int) -> ImageTexture:
 					+ variant * 211
 				)
 			) * 15437.31
-			var grain := grain_seed - floor(grain_seed)
+			var grain: float = grain_seed - floor(grain_seed)
 			var amount := clampf(0.16 + grain * 0.48 + wave, 0.0, 0.82)
 
 			if region_index == 9:
@@ -597,7 +597,7 @@ func _map_source_position_to_region(
 	source_index: int,
 	region_index: int
 ) -> Vector3:
-	var offset := world_position - ZONE_CENTERS[source_index]
+	var offset: Vector3 = world_position - ZONE_CENTERS[source_index]
 	return REGION_CENTERS[region_index] + Vector3(
 		offset.x * REGION_LINEAR_SCALE,
 		offset.y,
@@ -621,7 +621,7 @@ func _update_current_zone() -> void:
 	if not is_instance_valid(player):
 		return
 
-	var previous := current_zone
+	var previous: int = current_zone
 	var best_distance := INF
 
 	for region_index in range(REGION_CENTERS.size()):
@@ -674,7 +674,7 @@ func _show_zone_banner() -> void:
 		return
 
 	zone_banner_token += 1
-	var token := zone_banner_token
+	var token: int = zone_banner_token
 	zone_banner.text = "RÉGION %d\n%s" % [
 		current_zone + 1,
 		REGION_NAMES[current_zone]
@@ -713,7 +713,7 @@ func _calculate_live_marker() -> Vector2:
 	if not is_instance_valid(player):
 		return REGION_MAP_MARKERS[EXP_START_REGION]
 
-	var region_index := current_zone
+	var region_index: int = current_zone
 	var center: Vector3 = REGION_CENTERS[region_index]
 	var local := Vector2(
 		(player.global_position.x - center.x) / 150.0,
@@ -912,7 +912,7 @@ func _load_progress() -> void:
 
 	if layout_version < SAVE_LAYOUT_VERSION and is_instance_valid(player):
 		var source_index := _nearest_source_zone(player.global_position)
-		var region_index := _source_to_region(source_index)
+		var region_index: int = _source_to_region(source_index)
 		player.global_position = _map_source_position_to_region(
 			player.global_position,
 			source_index,
