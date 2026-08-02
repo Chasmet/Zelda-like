@@ -3,10 +3,10 @@ extends "res://scripts/main_expansion_v8.gd"
 const SNOW_SUMMIT_HEIGHT := 28.0
 
 
-func _wait_for_blender_placeholder_swap() -> void:
+func _wait_for_blender_placeholder_swap(_placeholder: Variant = null) -> void:
 	# Compatibilité avec la couche mobile historique : le modèle généré par
-	# Blender est déjà appliqué au spawn, mais l'ancien chargeur attend cette
-	# coroutine avant d'autoriser les contrôles et les tests de déplacement.
+	# Blender est déjà appliqué au spawn. Le paramètre optionnel accepte aussi
+	# l'ancienne signature interne sans casser les appels sans argument.
 	await get_tree().process_frame
 	await get_tree().process_frame
 
