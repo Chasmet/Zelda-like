@@ -1,5 +1,7 @@
 extends "res://scripts/player_water.gd"
 
+const V8_MODEL_ANIMATOR = preload("res://scripts/procedural_animator_v8.gd")
+
 signal water_flight_changed(active: bool, remaining: float)
 
 @export var water_flight_duration: float = 5.0
@@ -11,6 +13,33 @@ var water_flight_active: bool = false
 var water_flight_remaining: float = 0.0
 var water_flight_used_since_land: bool = false
 var _flight_target_y: float = 0.0
+
+
+func apply_asset(path: String) -> void:
+	if path.is_empty() or not is_instance_valid(_visual) or not ResourceLoader.exists(path):
+		return
+
+	var loaded: Resource = load(path)
+	if not loaded is PackedScene:
+		super.apply_asset(path)
+		return
+
+	var packed: PackedScene = loaded as PackedScene
+	var scene_instance: Node = packed.instantiate()
+	if not scene_instance is Node3D:
+		return
+
+	_clear_generated_visual(true)
+	var animator: ProceduralCharacterAnimator = V8_MODEL_ANIMATOR.new() as ProceduralCharacterAnimator
+	animator.name = "ImportedHeroModel"
+	_visual.add_child(animator)
+
+	var node_3d: Node3D = scene_instance as Node3D
+	node_3d.name = "HeroBlenderAsset"
+	node_3d.rotation.y = PI
+	animator.add_child(node_3d)
+	animator.bind_model(node_3d)
+	_model_animator = animator
 
 
 func request_water_flight() -> bool:
