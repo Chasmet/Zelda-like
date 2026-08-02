@@ -94,7 +94,7 @@ jobs:
           fi
           grep -q "CI FULL PLAYTHROUGH OK: zones=10 guardians=20 last_zone=10 save_restore=OK" /tmp/godot-playthrough.log
 
-      - name: Validate water diving collisions and complete gameplay physics
+      - name: Validate shoreline, diving, collisions and complete gameplay physics
         run: |
           GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
           set +e
@@ -137,7 +137,7 @@ jobs:
         uses: firebelley/godot-export@v7.0.0
         with:
           godot_executable_download_url: https://github.com/godotengine/godot-builds/releases/download/4.7.1-stable/Godot_v4.7.1-stable_linux.x86_64.zip
-          godot_export_templates_download_url: https://github.com/godotengine/godot-builds/releases/download/4.7.1-stable/Godot_v4.7.1-stable_export_templates.tpz
+          godot_export_templates_download_url: https://github.com/godotengine/godot-builds/releases/download/4.7.1-stable_export_templates.tpz
           relative_project_path: ./
           archive_output: false
           export_debug: true
@@ -162,7 +162,7 @@ jobs:
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_water_physics_check.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/generated_models/hero_knight.glb'
           mkdir -p build/final
-          TARGET="build/final/ZeldaLike-Water-Physics-V6-debug.apk"
+          TARGET="build/final/ZeldaLike-Water-Softlock-Fix-V7-debug.apk"
           if [ "$(realpath "$APK_PATH")" != "$(realpath -m "$TARGET")" ]; then
             cp "$APK_PATH" "$TARGET"
           fi
@@ -173,9 +173,9 @@ jobs:
       - name: Upload Android APK
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Water-Physics-V6-Android
+          name: ZeldaLike-Water-Softlock-Fix-V7-Android
           path: |
-            build/final/ZeldaLike-Water-Physics-V6-debug.apk
+            build/final/ZeldaLike-Water-Softlock-Fix-V7-debug.apk
             build/final/SHA256.txt
           if-no-files-found: error
           retention-days: 30
@@ -183,7 +183,7 @@ jobs:
       - name: Upload visual validation
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Water-Physics-V6-Validation
+          name: ZeldaLike-Water-Softlock-Fix-V7-Validation
           path: build/validation/HUD-Carte-Portrait.png
           if-no-files-found: error
           retention-days: 30
@@ -191,7 +191,7 @@ jobs:
       - name: Upload generated Blender models
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Water-Physics-V6-Models
+          name: ZeldaLike-Water-Softlock-Fix-V7-Models
           path: generated_models/*.glb
           if-no-files-found: error
           retention-days: 30
