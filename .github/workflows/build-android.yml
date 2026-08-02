@@ -49,11 +49,11 @@ jobs:
           GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
           "$GODOT" --headless --path . --editor --quit
           set +e
-          timeout 50s "$GODOT" --headless --path . --quit-after 25 > /tmp/godot-runtime.log 2>&1
+          timeout 55s "$GODOT" --headless --path . --quit-after 28 > /tmp/godot-runtime.log 2>&1
           STATUS=$?
           set -e
           cat /tmp/godot-runtime.log
-          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|ERROR:.*main_mobile_final|ERROR:.*procedural_animator|ERROR:.*ci_full_playthrough" /tmp/godot-runtime.log; then
+          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|ERROR:.*main_water_final|ERROR:.*player_water|ERROR:.*ci_water_physics|ERROR:.*main_mobile_final|ERROR:.*procedural_animator|ERROR:.*ci_full_playthrough" /tmp/godot-runtime.log; then
             exit 1
           fi
           if [ "$STATUS" -ne 0 ] && [ "$STATUS" -ne 124 ]; then
@@ -93,6 +93,23 @@ jobs:
             exit "$STATUS"
           fi
           grep -q "CI FULL PLAYTHROUGH OK: zones=10 guardians=20 last_zone=10 save_restore=OK" /tmp/godot-playthrough.log
+
+      - name: Validate water diving collisions and complete gameplay physics
+        run: |
+          GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
+          set +e
+          timeout 190s xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path . -- --ci-water-physics > /tmp/godot-water-physics.log 2>&1
+          STATUS=$?
+          set -e
+          cat /tmp/godot-water-physics.log
+          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|CI WATER PHYSICS:" /tmp/godot-water-physics.log; then
+            exit 1
+          fi
+          if [ "$STATUS" -ne 0 ]; then
+            echo "Water and gameplay physics test exited with status $STATUS"
+            exit "$STATUS"
+          fi
+          grep -q "CI WATER PHYSICS OK: swim=OK dive=OK surface=OK seabed=OK oxygen=OK walk=OK jump=OK dodge=OK respawn=OK" /tmp/godot-water-physics.log
 
       - name: Capture the fully loaded interface
         run: |
@@ -136,13 +153,16 @@ jobs:
           unzip -l "$APK_PATH" | grep -q 'classes.dex'
           unzip -l "$APK_PATH" | grep -q 'lib/arm64-v8a/libgodot_android.so'
           unzip -l "$APK_PATH" | grep -q 'assets/carte monde.png'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_water_final.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/player_water.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_mobile_final.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/procedural_animator.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_walk_animation_check.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_full_playthrough.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_water_physics_check.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/generated_models/hero_knight.glb'
           mkdir -p build/final
-          TARGET="build/final/ZeldaLike-Full-Playthrough-V5-debug.apk"
+          TARGET="build/final/ZeldaLike-Water-Physics-V6-debug.apk"
           if [ "$(realpath "$APK_PATH")" != "$(realpath -m "$TARGET")" ]; then
             cp "$APK_PATH" "$TARGET"
           fi
@@ -153,9 +173,9 @@ jobs:
       - name: Upload Android APK
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Full-Playthrough-V5-Android
+          name: ZeldaLike-Water-Physics-V6-Android
           path: |
-            build/final/ZeldaLike-Full-Playthrough-V5-debug.apk
+            build/final/ZeldaLike-Water-Physics-V6-debug.apk
             build/final/SHA256.txt
           if-no-files-found: error
           retention-days: 30
@@ -163,7 +183,7 @@ jobs:
       - name: Upload visual validation
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Full-Playthrough-V5-Validation
+          name: ZeldaLike-Water-Physics-V6-Validation
           path: build/validation/HUD-Carte-Portrait.png
           if-no-files-found: error
           retention-days: 30
@@ -171,7 +191,7 @@ jobs:
       - name: Upload generated Blender models
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Full-Playthrough-V5-Models
+          name: ZeldaLike-Water-Physics-V6-Models
           path: generated_models/*.glb
           if-no-files-found: error
           retention-days: 30
