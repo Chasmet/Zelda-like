@@ -19,10 +19,13 @@ var water_bounds: Rect2 = Rect2()
 var last_safe_ground_position: Vector3 = Vector3.ZERO
 
 var _water_enabled: bool = false
+var _open_water_column: bool = false
+var _water_probe_timer: float = 0.0
 var _swim_vertical_override: float = 0.0
 var _swim_vertical_timer: float = 0.0
 var _drown_tick_timer: float = 1.0
 var _last_oxygen_report: int = -1
+var _respawning: bool = false
 
 
 func _ready() -> void:
@@ -37,6 +40,7 @@ func set_water_profile(surface_y: float, bottom_y: float, bounds: Rect2) -> void
 	water_bottom_y = bottom_y
 	water_bounds = bounds
 	_water_enabled = true
+	_open_water_column = _probe_open_water_column()
 	_refresh_water_flags()
 
 
@@ -47,7 +51,7 @@ func set_spawn(point: Vector3) -> void:
 
 
 func request_swim_vertical(direction: float, duration: float = 0.42) -> void:
-	if not in_water:
+	if not in_water or _respawning:
 		return
 	_swim_vertical_override = clampf(direction, -1.0, 1.0)
 	_swim_vertical_timer = maxf(_swim_vertical_timer, duration)
@@ -64,6 +68,7 @@ func get_water_debug() -> Dictionary:
 		"enabled": _water_enabled,
 		"in_water": in_water,
 		"underwater": underwater,
+		"open_water_column": _open_water_column,
 		"oxygen": oxygen,
 		"max_oxygen": max_oxygen,
 		"surface_y": water_surface_y,
@@ -71,7 +76,8 @@ func get_water_debug() -> Dictionary:
 		"bounds": water_bounds,
 		"safe_position": last_safe_ground_position,
 		"vertical_override": _swim_vertical_override,
-		"vertical_timer": _swim_vertical_timer
+		"vertical_timer": _swim_vertical_timer,
+		"respawning": _respawning
 	}
 
 
@@ -82,11 +88,17 @@ func get_movement_debug() -> Dictionary:
 
 
 func _physics_process(delta: float) -> void:
+	_water_probe_timer = maxf(0.0, _water_probe_timer - delta)
+	if _water_probe_timer <= 0.0:
+		_update_water_probe()
 	_refresh_water_flags()
+
 	if not in_water:
 		super._physics_process(delta)
+		_update_water_probe()
 		_refresh_water_flags()
-		if not in_water and is_on_floor() and global_position.is_finite():
+		_recover_oxygen_on_land(delta)
+		if not in_water and _is_safe_ground_position():
 			last_safe_ground_position = global_position
 		return
 
@@ -161,9 +173,19 @@ func _physics_process(delta: float) -> void:
 	_last_position_after_slide = global_position
 	_last_slide_count = get_slide_collision_count()
 
-	if global_position.y > water_surface_y - 0.58:
-		global_position.y = water_surface_y - 0.58
+	_update_water_probe()
+	_refresh_water_flags()
+	if not in_water:
+		_update_model_animation()
+		return
+
+	# Le plafond de nage n'est appliqué qu'en pleine eau. Il ne peut donc plus
+	# téléporter le héros sous une plage ou à l'intérieur d'un terrain.
+	var surface_ceiling := water_surface_y - 0.42
+	if _open_water_column and global_position.y > surface_ceiling:
+		global_position.y = surface_ceiling
 		velocity.y = minf(velocity.y, 0.0)
+
 	if global_position.y < water_bottom_y - 0.35:
 		_respawn()
 		return
@@ -175,12 +197,49 @@ func _physics_process(delta: float) -> void:
 
 func dodge() -> void:
 	if in_water:
-		if dodge_cooldown > 0.0 or not can_control:
+		if dodge_cooldown > 0.0 or not can_control or _respawning:
 			return
 		dodge_cooldown = 0.28
 		request_swim_vertical(-1.0, 0.52)
 		return
 	super.dodge()
+
+
+func _update_water_probe() -> void:
+	_open_water_column = _probe_open_water_column()
+	_water_probe_timer = 0.08
+
+
+func _probe_open_water_column() -> bool:
+	if not _water_enabled or water_bounds.size.x <= 0.0 or water_bounds.size.y <= 0.0:
+		return false
+	if not water_bounds.has_point(Vector2(global_position.x, global_position.z)):
+		return false
+	if get_world_3d() == null:
+		return false
+
+	var ray_from := Vector3(global_position.x, water_surface_y + 48.0, global_position.z)
+	var ray_to := Vector3(global_position.x, water_bottom_y - 2.0, global_position.z)
+	var excluded: Array = [get_rid()]
+
+	# Ignore les personnages qui pourraient se trouver exactement au-dessus de
+	# la colonne testée. Le premier décor solide détermine si la colonne est une
+	# plage/route ou de l'eau ouverte jusqu'au fond marin.
+	for _attempt in range(6):
+		var query := PhysicsRayQueryParameters3D.create(ray_from, ray_to, 1)
+		query.exclude = excluded
+		query.collide_with_areas = false
+		query.collide_with_bodies = true
+		var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
+		if hit.is_empty():
+			return true
+		var collider = hit.get("collider")
+		if collider is CharacterBody3D:
+			excluded.append(collider.get_rid())
+			continue
+		var hit_position: Vector3 = hit.get("position", ray_to)
+		return hit_position.y < water_surface_y - 0.22
+	return false
 
 
 func _refresh_water_flags() -> void:
@@ -189,10 +248,29 @@ func _refresh_water_flags() -> void:
 	var inside_horizontal := false
 	if _water_enabled and water_bounds.size.x > 0.0 and water_bounds.size.y > 0.0:
 		inside_horizontal = water_bounds.has_point(Vector2(global_position.x, global_position.z))
-	in_water = _water_enabled and inside_horizontal and global_position.y <= water_surface_y + 0.35 and global_position.y >= water_bottom_y - 1.0
+
+	var valid_height := global_position.y >= water_bottom_y - 1.0
+	if previous_in_water:
+		in_water = _water_enabled and inside_horizontal and _open_water_column and valid_height and global_position.y <= water_surface_y + 0.25
+	else:
+		# L'entrée en nage exige désormais d'être réellement sous la surface et
+		# au-dessus d'une colonne d'eau, pas simplement sur une plage basse.
+		in_water = _water_enabled and inside_horizontal and _open_water_column and valid_height and global_position.y <= water_surface_y - 0.05
+
 	underwater = in_water and global_position.y + 1.58 < water_surface_y - 0.10
 	if previous_in_water != in_water or previous_underwater != underwater:
 		water_state_changed.emit(in_water, underwater)
+
+
+func _is_safe_ground_position() -> bool:
+	return is_on_floor() and not _open_water_column and global_position.is_finite() and global_position.y > water_surface_y + 0.65
+
+
+func _recover_oxygen_on_land(delta: float) -> void:
+	if oxygen < max_oxygen:
+		oxygen = minf(max_oxygen, oxygen + delta * 5.0)
+		_emit_oxygen_if_needed()
+	_drown_tick_timer = 1.0
 
 
 func _update_oxygen(delta: float) -> void:
@@ -219,22 +297,33 @@ func _emit_oxygen_if_needed(force: bool = false) -> void:
 
 
 func _respawn() -> void:
+	if _respawning:
+		return
+	_respawning = true
 	can_control = false
 	velocity = Vector3.ZERO
 	var respawn_position := last_safe_ground_position if last_safe_ground_position.is_finite() else spawn_position
-	global_position = respawn_position
+	if not respawn_position.is_finite():
+		respawn_position = Vector3.ZERO
+	global_position = respawn_position + Vector3.UP * 0.18
 	spawn_position = respawn_position
 	health = max_health
 	oxygen = max_oxygen
 	in_water = false
 	underwater = false
+	_open_water_column = false
+	_water_probe_timer = 0.0
 	_swim_vertical_timer = 0.0
 	_swim_vertical_override = 0.0
 	health_changed.emit(health, max_health)
+	water_state_changed.emit(false, false)
 	_emit_oxygen_if_needed(true)
 	if is_instance_valid(_model_animator):
 		_model_animator.reset_pose()
-	await get_tree().create_timer(0.35).timeout
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	await get_tree().create_timer(0.25).timeout
+	_respawning = false
 	can_control = true
 
 
