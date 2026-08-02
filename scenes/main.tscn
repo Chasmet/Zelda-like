@@ -1,12 +1,13 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
-[ext_resource type="Script" path="res://scripts/main_mobile_final.gd" id="1_main"]
+[ext_resource type="Script" path="res://scripts/main_water_final.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/portrait_hud_adjuster.gd" id="2_portrait"]
 [ext_resource type="Script" path="res://scripts/ci_hud_capture.gd" id="3_capture"]
 [ext_resource type="Script" path="res://scripts/ci_walk_animation_check.gd" id="4_walk"]
 [ext_resource type="Script" path="res://scripts/ci_full_playthrough.gd" id="5_playthrough"]
+[ext_resource type="Script" path="res://scripts/ci_water_physics_check.gd" id="6_water"]
 
-[node name="SkypieaMobileFinal" type="Node3D"]
+[node name="SkypieaWaterPhysicsFinal" type="Node3D"]
 script = ExtResource("1_main")
 
 [node name="PortraitHUDAdjuster" type="Node" parent="."]
@@ -20,3 +21,6 @@ script = ExtResource("4_walk")
 
 [node name="CIFullPlaythrough" type="Node" parent="."]
 script = ExtResource("5_playthrough")
+
+[node name="CIWaterPhysicsCheck" type="Node" parent="."]
+script = ExtResource("6_water")
