@@ -49,6 +49,41 @@ func _run_physics_check() -> void:
 	player.oxygen = player.max_oxygen
 	player.can_control = true
 
+	# Régression V6 : une plage basse ne doit jamais être prise pour l'océan,
+	# et revenir de l'eau vers cette plage ne doit pas enfermer le héros sous le sol.
+	var shore_x := -58.0
+	var shore_z := 82.7
+	var shore_y := float(game.call("_terrain_world_height", 7, shore_x, shore_z))
+	player.global_position = Vector3(shore_x, shore_y + 0.75, shore_z)
+	player.velocity = Vector3.ZERO
+	_set_game_move(game, player, Vector2.ZERO)
+	if not await _wait_for_floor(player, 3.0):
+		_fail("la plage basse ne fournit pas de sol stable", 93)
+		return
+	water = player.get_water_debug()
+	if bool(water.get("in_water", false)) or bool(water.get("open_water_column", true)):
+		_fail("la plage basse est détectée à tort comme de l'eau", 94)
+		return
+
+	player.global_position = Vector3(shore_x, surface_y - 1.15, 84.5)
+	player.velocity = Vector3.ZERO
+	await _wait_physics_frames(14)
+	water = player.get_water_debug()
+	if not bool(water.get("in_water", false)):
+		_fail("l'océan juste après la plage n'active pas la nage", 95)
+		return
+
+	player.global_position = Vector3(shore_x, shore_y + 0.75, shore_z)
+	player.velocity = Vector3.ZERO
+	await _wait_physics_frames(8)
+	if not await _wait_for_floor(player, 3.0):
+		_fail("le retour de l'eau vers la plage enferme le héros dans la collision", 96)
+		return
+	water = player.get_water_debug()
+	if bool(water.get("in_water", false)) or not player.can_control or player.global_position.y < shore_y - 0.25:
+		_fail("le héros reste bloqué en mode nage ou sous la plage", 97)
+		return
+
 	# Entrée dans l'eau et nage horizontale sans chute libre.
 	player.global_position = Vector3(0.0, surface_y - 1.15, 96.0)
 	player.velocity = Vector3.ZERO
