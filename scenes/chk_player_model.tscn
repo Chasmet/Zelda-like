@@ -1,0 +1,50 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="PackedScene" path="res://joueur 1 chk.glb" id="1_chk"]
+
+[sub_resource type="StandardMaterial3D" id="Material_blade"]
+albedo_color = Color(0.72, 0.82, 0.92, 1)
+metallic = 0.82
+roughness = 0.22
+
+[sub_resource type="BoxMesh" id="Mesh_blade"]
+material = SubResource("Material_blade")
+size = Vector3(0.07, 1.08, 0.035)
+
+[sub_resource type="StandardMaterial3D" id="Material_hilt"]
+albedo_color = Color(0.18, 0.11, 0.045, 1)
+metallic = 0.32
+roughness = 0.56
+
+[sub_resource type="BoxMesh" id="Mesh_guard"]
+material = SubResource("Material_hilt")
+size = Vector3(0.34, 0.065, 0.075)
+
+[sub_resource type="BoxMesh" id="Mesh_handle"]
+material = SubResource("Material_hilt")
+size = Vector3(0.075, 0.30, 0.075)
+
+[node name="CHKJoueur1" type="Node3D"]
+
+[node name="CharacterMesh" parent="." instance=ExtResource("1_chk")]
+position = Vector3(0, 0.92, 0)
+scale = Vector3(0.92, 0.92, 0.92)
+
+[node name="Sword" type="Node3D" parent="."]
+position = Vector3(0.50, 0.92, 0.03)
+rotation = Vector3(0, 0, -0.18)
+
+[node name="Blade" type="MeshInstance3D" parent="Sword"]
+position = Vector3(0, 0.57, 0)
+mesh = SubResource("Mesh_blade")
+cast_shadow = 1
+
+[node name="Guard" type="MeshInstance3D" parent="Sword"]
+position = Vector3(0, 0.025, 0)
+mesh = SubResource("Mesh_guard")
+cast_shadow = 1
+
+[node name="Handle" type="MeshInstance3D" parent="Sword"]
+position = Vector3(0, -0.16, 0)
+mesh = SubResource("Mesh_handle")
+cast_shadow = 1
