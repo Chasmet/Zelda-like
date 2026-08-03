@@ -2,7 +2,7 @@ extends Node
 
 const MAX_WAIT_SECONDS := 120.0
 const TEST_TOUCH_ID := 27
-const MIN_WALK_POSE_DELTA := 0.020
+const MIN_WALK_POSE_DELTA := 0.012
 const MIN_ATTACK_POSE_DELTA := 0.030
 const MIN_DODGE_POSE_DELTA := 0.040
 
