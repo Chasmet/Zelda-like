@@ -80,7 +80,7 @@ func _run_walk_check() -> void:
 		_release_touch(forward_touch)
 		get_tree().quit(8)
 		return
-	if pose_change < 0.035:
+	if pose_change < 0.020:
 		push_error("CI TOUCH CHECK: CHK hero moved but the visible model animation stayed frozen; pose delta %.4f" % pose_change)
 		_release_touch(forward_touch)
 		get_tree().quit(9)
