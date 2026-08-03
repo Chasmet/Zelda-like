@@ -2,6 +2,9 @@ extends Node
 
 const MAX_WAIT_SECONDS := 120.0
 const TEST_TOUCH_ID := 27
+const MIN_WALK_POSE_DELTA := 0.020
+const MIN_ATTACK_POSE_DELTA := 0.030
+const MIN_DODGE_POSE_DELTA := 0.040
 
 
 func _ready() -> void:
@@ -80,7 +83,7 @@ func _run_walk_check() -> void:
 		_release_touch(forward_touch)
 		get_tree().quit(8)
 		return
-	if pose_change < 0.020:
+	if pose_change < MIN_WALK_POSE_DELTA:
 		push_error("CI TOUCH CHECK: CHK hero moved but the visible model animation stayed frozen; pose delta %.4f" % pose_change)
 		_release_touch(forward_touch)
 		get_tree().quit(9)
@@ -108,7 +111,7 @@ func _run_walk_check() -> void:
 	await get_tree().create_timer(0.18).timeout
 	var attack_pose: Vector4 = animator.call("get_animation_signature")
 	var attack_change: float = (attack_pose - idle_pose).length()
-	if attack_change < 0.06:
+	if attack_change < MIN_ATTACK_POSE_DELTA:
 		push_error("CI TOUCH CHECK: CHK attack animation is not visible; delta %.4f" % attack_change)
 		get_tree().quit(12)
 		return
@@ -119,7 +122,7 @@ func _run_walk_check() -> void:
 	await get_tree().create_timer(0.20).timeout
 	var dodge_pose: Vector4 = animator.call("get_animation_signature")
 	var dodge_change: float = (dodge_pose - before_dodge).length()
-	if dodge_change < 0.08:
+	if dodge_change < MIN_DODGE_POSE_DELTA:
 		push_error("CI TOUCH CHECK: CHK dodge animation is not visible; delta %.4f" % dodge_change)
 		get_tree().quit(13)
 		return
