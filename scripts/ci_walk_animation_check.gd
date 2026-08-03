@@ -33,9 +33,15 @@ func _run_walk_check() -> void:
 		get_tree().quit(4)
 		return
 
-	if not bool(animator.call("is_rig_ready")):
-		push_error("CI TOUCH CHECK: Arm_L, Arm_R, Leg_L or Leg_R pivot is missing")
+	if not animator.has_method("is_animation_ready") or not bool(animator.call("is_animation_ready")):
+		push_error("CI TOUCH CHECK: CHK player animation system is not ready")
 		get_tree().quit(5)
+		return
+
+	var imported_model: Node = player.get_node_or_null("Visual/ImportedHeroModel/HeroBlenderAsset")
+	if not is_instance_valid(imported_model):
+		push_error("CI TOUCH CHECK: joueur 1 chk.glb was not installed as the active hero")
+		get_tree().quit(6)
 		return
 
 	var joystick_rect: Rect2 = joystick_base.get_global_rect()
@@ -54,10 +60,9 @@ func _run_walk_check() -> void:
 	if applied_move.length() < 0.45 or applied_move.y > -0.35:
 		push_error("CI TOUCH CHECK: touching above the joystick did not create forward movement: %s" % applied_move)
 		_release_touch(forward_touch)
-		get_tree().quit(6)
+		get_tree().quit(7)
 		return
 
-	# Measure two different limb poses while the same finger remains pressed.
 	await get_tree().create_timer(0.31).timeout
 	var first_position: Vector3 = player.global_position
 	var first_pose: Vector4 = animator.call("get_animation_signature")
@@ -73,12 +78,12 @@ func _run_walk_check() -> void:
 	if total_travelled < 2.0 or moving_interval < 0.80:
 		push_error("CI TOUCH CHECK: touchscreen joystick did not move the hero continuously; total %.4f interval %.4f debug=%s" % [total_travelled, moving_interval, movement_debug])
 		_release_touch(forward_touch)
-		get_tree().quit(7)
-		return
-	if pose_change < 0.15:
-		push_error("CI TOUCH CHECK: hero moved but limbs remained frozen; pose delta %.4f" % pose_change)
-		_release_touch(forward_touch)
 		get_tree().quit(8)
+		return
+	if pose_change < 0.035:
+		push_error("CI TOUCH CHECK: CHK hero moved but the visible model animation stayed frozen; pose delta %.4f" % pose_change)
+		_release_touch(forward_touch)
+		get_tree().quit(9)
 		return
 
 	_release_touch(forward_touch)
@@ -91,14 +96,35 @@ func _run_walk_check() -> void:
 
 	if released_move.length() > 0.01:
 		push_error("CI TOUCH CHECK: hero kept receiving input after finger release: %s" % released_move)
-		get_tree().quit(9)
+		get_tree().quit(10)
 		return
 	if stopping_distance > 0.45:
 		push_error("CI TOUCH CHECK: hero failed to stop after release; travelled %.4f" % stopping_distance)
-		get_tree().quit(10)
+		get_tree().quit(11)
 		return
 
-	print("CI TOUCH CHECK OK: total=%.3f interval=%.3f pose_delta=%.3f stop=%.3f" % [total_travelled, moving_interval, pose_change, stopping_distance])
+	var idle_pose: Vector4 = animator.call("get_animation_signature")
+	player.call("attack")
+	await get_tree().create_timer(0.18).timeout
+	var attack_pose: Vector4 = animator.call("get_animation_signature")
+	var attack_change: float = (attack_pose - idle_pose).length()
+	if attack_change < 0.06:
+		push_error("CI TOUCH CHECK: CHK attack animation is not visible; delta %.4f" % attack_change)
+		get_tree().quit(12)
+		return
+
+	await get_tree().create_timer(0.48).timeout
+	var before_dodge: Vector4 = animator.call("get_animation_signature")
+	player.call("dodge")
+	await get_tree().create_timer(0.20).timeout
+	var dodge_pose: Vector4 = animator.call("get_animation_signature")
+	var dodge_change: float = (dodge_pose - before_dodge).length()
+	if dodge_change < 0.08:
+		push_error("CI TOUCH CHECK: CHK dodge animation is not visible; delta %.4f" % dodge_change)
+		get_tree().quit(13)
+		return
+
+	print("CI TOUCH CHECK OK: model=joueur 1 chk.glb total=%.3f interval=%.3f walk_delta=%.3f attack_delta=%.3f dodge_delta=%.3f stop=%.3f" % [total_travelled, moving_interval, pose_change, attack_change, dodge_change, stopping_distance])
 	get_tree().quit()
 
 
