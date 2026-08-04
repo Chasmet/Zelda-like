@@ -7,6 +7,15 @@ func _ready() -> void:
 	acceleration = 64.0
 	super._ready()
 
+# Détecte précisément le passage d'un joystick actif à un joystick relâché.
+# L'arrêt ne modifie pas les commandes clavier, les attaques ou les esquives.
+func set_virtual_move(value: Vector2) -> void:
+	var was_active := virtual_move.length() > 0.08
+	super.set_virtual_move(value)
+	if was_active and virtual_move.length() <= 0.08:
+		velocity.x = 0.0
+		velocity.z = 0.0
+
 # Caméra troisième personne rapprochée : le personnage reste entier à l'écran,
 # mais il est nettement plus proche que dans les versions précédentes.
 func _build_camera() -> void:
