@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://uploaded_models/soldat_ile_1.glb" id="1_soldier"]
+
+[node name="SoldatIle1Model" type="Node3D"]
+
+[node name="CharacterMesh" parent="." instance=ExtResource("1_soldier")]
+position = Vector3(0, 1, 0)
+scale = Vector3(0.92, 0.92, 0.92)
