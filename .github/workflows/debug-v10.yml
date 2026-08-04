@@ -9,7 +9,7 @@ on:
 jobs:
   parser-log:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     permissions:
       contents: read
 
@@ -22,10 +22,10 @@ jobs:
       - name: Reconstruct Yvane
         run: python3 tools/decode_yvane_model.py
 
-      - name: Install Blender
+      - name: Install Blender and Xvfb
         run: |
           sudo apt-get update
-          sudo apt-get install -y blender python3-numpy
+          sudo apt-get install -y blender python3-numpy xvfb
 
       - name: Generate game models
         run: |
@@ -53,7 +53,7 @@ jobs:
           unzip -q /tmp/godot.zip -d /tmp/godot
           chmod +x /tmp/godot/Godot_v4.7.1-stable_linux.x86_64
 
-      - name: Capture parser and runtime logs
+      - name: Capture parser, runtime and touch logs
         continue-on-error: true
         run: |
           GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
@@ -70,6 +70,7 @@ jobs:
                   "res://scripts/main_supercontinent_v10.gd",
                   "res://scripts/uploaded_enemy.gd",
                   "res://scripts/player_yvane.gd",
+                  "res://scripts/ci_walk_animation_check.gd",
                   "res://scripts/ci_uploaded_characters_check.gd",
                   "res://scripts/ci_water_physics_check.gd"
               ]
@@ -81,8 +82,9 @@ jobs:
           EOF
           "$GODOT" --headless --path . --script tools/check_v10_scripts.gd > build/debug-v10/script-load.log 2>&1 || true
           timeout 70s "$GODOT" --headless --path . --quit-after 35 > build/debug-v10/runtime.log 2>&1 || true
-          grep -nE "SCRIPT ERROR|Parse Error|ERROR:|Could not resolve|Cannot infer|Warning treated|Invalid" build/debug-v10/*.log > build/debug-v10/errors-only.log || true
-          cat build/debug-v10/script-load.log
+          timeout 145s xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path . -- --ci-walk-check > build/debug-v10/touch.log 2>&1 || echo "touch_status=$?" > build/debug-v10/touch-status.txt
+          grep -nE "SCRIPT ERROR|Parse Error|ERROR:|Could not resolve|Cannot infer|Warning treated|Invalid|CI TOUCH CHECK" build/debug-v10/*.log > build/debug-v10/errors-only.log || true
+          cat build/debug-v10/touch.log
           cat build/debug-v10/errors-only.log
 
       - name: Upload debug logs
