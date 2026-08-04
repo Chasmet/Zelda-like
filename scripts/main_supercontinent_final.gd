@@ -79,6 +79,40 @@ func _build_supercontinent_terrain() -> void:
 	terrain.add_child(collision)
 	add_child(terrain)
 
+# Les grands boss sont déposés au-dessus du relief, puis la physique les pose
+# correctement. Cela évite qu'un modèle volumineux naisse à moitié sous le sol.
+func _spawn_imported_boss(zone_index: int, spec: Dictionary) -> void:
+	var enemy = IMPORTED_ENEMY_SCRIPT.new()
+	var boss_id := String(spec["node"])
+	var boss_asset := String(spec["asset"])
+	enemy.name = boss_id
+	enemy.set("visual_height", float(spec["height"]))
+	var center: Vector3 = SUPER_ZONE_CENTERS[zone_index]
+	var angle := 0.72 + float(zone_index) * 0.61
+	var world_x := center.x + cos(angle) * 31.0
+	var world_z := center.z + sin(angle) * 31.0
+	enemy.position = Vector3(world_x, _super_height(world_x, world_z) + 1.10, world_z)
+	enemy.set_meta("zone_index", zone_index)
+	enemy.set_meta("boss_id", boss_id)
+	enemy.set_meta("boss_asset", boss_asset)
+	add_child(enemy)
+	spawned_bosses[boss_id] = enemy
+	enemy.setup(player, zone_index + 2, boss_asset)
+	enemy.max_health = int(spec["health"])
+	enemy.health = enemy.max_health
+	enemy.damage = int(spec["damage"])
+	enemy.move_speed = float(spec["speed"])
+	enemy.aggro_range = 32.0
+	enemy.attack_range = 2.55
+	enemy.spawn_position = enemy.global_position
+	enemy.defeated.connect(_on_enemy_defeated)
+	enemies.append(enemy)
+	if enemy.has_method("_update_health_label"):
+		enemy.call("_update_health_label")
+	_add_character_name_label(enemy, String(spec["title"]), float(spec["height"]) + 0.65)
+	var aura_color: Color = spec["color"]
+	_add_boss_aura(enemy, aura_color)
+
 # Tant qu'un doigt tient le joystick, le héros avance normalement. Dès que le
 # doigt est relâché, la vitesse résiduelle est supprimée à chaque image. Les
 # esquives et les projections restent intactes grâce aux délais de protection.
