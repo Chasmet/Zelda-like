@@ -58,15 +58,32 @@ jobs:
         run: |
           GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
           mkdir -p build/debug-v10
-          set +e
-          "$GODOT" --headless --path . --editor --quit > build/debug-v10/editor.log 2>&1
-          EDITOR_STATUS=$?
-          timeout 70s "$GODOT" --headless --path . --quit-after 35 > build/debug-v10/runtime.log 2>&1
-          RUNTIME_STATUS=$?
-          set -e
-          printf 'editor_status=%s\nruntime_status=%s\n' "$EDITOR_STATUS" "$RUNTIME_STATUS" > build/debug-v10/status.txt
-          cat build/debug-v10/editor.log
-          cat build/debug-v10/runtime.log
+          "$GODOT" --headless --path . --editor --quit > build/debug-v10/editor.log 2>&1 || true
+          cat > tools/check_v10_scripts.gd <<'EOF'
+          extends SceneTree
+
+          func _initialize() -> void:
+              var paths: Array[String] = [
+                  "res://scripts/main_supercontinent_world.gd",
+                  "res://scripts/main_supercontinent_decor.gd",
+                  "res://scripts/main_supercontinent_gameplay.gd",
+                  "res://scripts/main_supercontinent_v10.gd",
+                  "res://scripts/uploaded_enemy.gd",
+                  "res://scripts/player_yvane.gd",
+                  "res://scripts/ci_uploaded_characters_check.gd",
+                  "res://scripts/ci_water_physics_check.gd"
+              ]
+              for path in paths:
+                  print("=== LOAD ", path, " ===")
+                  var resource: Resource = load(path)
+                  print("RESULT: ", resource)
+              quit()
+          EOF
+          "$GODOT" --headless --path . --script tools/check_v10_scripts.gd > build/debug-v10/script-load.log 2>&1 || true
+          timeout 70s "$GODOT" --headless --path . --quit-after 35 > build/debug-v10/runtime.log 2>&1 || true
+          grep -nE "SCRIPT ERROR|Parse Error|ERROR:|Could not resolve|Cannot infer|Warning treated|Invalid" build/debug-v10/*.log > build/debug-v10/errors-only.log || true
+          cat build/debug-v10/script-load.log
+          cat build/debug-v10/errors-only.log
 
       - name: Upload debug logs
         if: always()
