@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/main_chk_player.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/portrait_hud_adjuster.gd" id="2_portrait"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/ci_walk_animation_check.gd" id="4_walk"]
 [ext_resource type="Script" path="res://scripts/ci_full_playthrough.gd" id="5_playthrough"]
 [ext_resource type="Script" path="res://scripts/ci_water_physics_check.gd" id="6_water"]
+[ext_resource type="Script" path="res://scripts/ci_uploaded_characters_check.gd" id="7_characters"]
 
 [node name="SkypieaCHKPlayer" type="Node3D"]
 script = ExtResource("1_main")
@@ -24,3 +25,6 @@ script = ExtResource("5_playthrough")
 
 [node name="CIWaterPhysicsCheck" type="Node" parent="."]
 script = ExtResource("6_water")
+
+[node name="CIUploadedCharactersCheck" type="Node" parent="."]
+script = ExtResource("7_characters")

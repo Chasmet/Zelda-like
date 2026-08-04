@@ -1,0 +1,125 @@
+[gd_scene load_steps=13 format=3]
+
+[sub_resource type="StandardMaterial3D" id="Purple"]
+albedo_color = Color(0.24, 0.06, 0.52, 1)
+roughness = 0.58
+
+[sub_resource type="StandardMaterial3D" id="PurpleDark"]
+albedo_color = Color(0.08, 0.015, 0.18, 1)
+roughness = 0.72
+
+[sub_resource type="StandardMaterial3D" id="Skin"]
+albedo_color = Color(0.64, 0.36, 0.20, 1)
+roughness = 0.72
+
+[sub_resource type="StandardMaterial3D" id="Black"]
+albedo_color = Color(0.015, 0.012, 0.02, 1)
+roughness = 0.82
+
+[sub_resource type="StandardMaterial3D" id="Red"]
+albedo_color = Color(0.72, 0.02, 0.04, 1)
+roughness = 0.48
+
+[sub_resource type="StandardMaterial3D" id="Wood"]
+albedo_color = Color(0.24, 0.09, 0.025, 1)
+roughness = 0.9
+
+[sub_resource type="CylinderMesh" id="Robe"]
+material = SubResource("Purple")
+top_radius = 0.34
+bottom_radius = 0.74
+height = 1.5
+
+[sub_resource type="SphereMesh" id="Head"]
+material = SubResource("Skin")
+radius = 0.31
+height = 0.62
+
+[sub_resource type="CapsuleMesh" id="Limb"]
+material = SubResource("Purple")
+radius = 0.11
+height = 0.78
+
+[sub_resource type="CylinderMesh" id="HatCone"]
+material = SubResource("Purple")
+top_radius = 0.025
+bottom_radius = 0.48
+height = 1.05
+
+[sub_resource type="CylinderMesh" id="HatBrim"]
+material = SubResource("PurpleDark")
+top_radius = 0.78
+bottom_radius = 0.78
+height = 0.08
+
+[sub_resource type="BoxMesh" id="Broom"]
+material = SubResource("Wood")
+size = Vector3(0.09, 2.8, 0.09)
+
+[sub_resource type="SphereMesh" id="Hair"]
+material = SubResource("Black")
+radius = 0.38
+height = 0.74
+
+[node name="SorciereCauchemarsBossModel" type="Node3D"]
+scale = Vector3(1.35, 1.35, 1.35)
+
+[node name="Hips" type="Node3D" parent="."]
+position = Vector3(0, 1.05, 0)
+
+[node name="Cape" type="MeshInstance3D" parent="Hips"]
+position = Vector3(0, 0.12, 0.12)
+mesh = SubResource("Robe")
+
+[node name="Torso" type="MeshInstance3D" parent="Hips"]
+position = Vector3(0, 0.48, 0)
+mesh = SubResource("Robe")
+scale = Vector3(0.72, 0.62, 0.72)
+
+[node name="Hair" type="MeshInstance3D" parent="Hips"]
+position = Vector3(0, 1.24, 0.08)
+mesh = SubResource("Hair")
+
+[node name="Head" type="MeshInstance3D" parent="Hips"]
+position = Vector3(0, 1.28, -0.12)
+mesh = SubResource("Head")
+
+[node name="HatBrim" type="MeshInstance3D" parent="Hips/Head"]
+position = Vector3(0, 0.32, 0)
+mesh = SubResource("HatBrim")
+
+[node name="HatCone" type="MeshInstance3D" parent="Hips/Head"]
+position = Vector3(0.08, 0.83, 0)
+rotation = Vector3(0, 0, -0.18)
+mesh = SubResource("HatCone")
+
+[node name="HatRibbon" type="MeshInstance3D" parent="Hips/Head"]
+position = Vector3(0, 0.48, 0)
+mesh = SubResource("HatBrim")
+scale = Vector3(0.72, 1.4, 0.72)
+material_override = SubResource("Red")
+
+[node name="Arm_L" type="MeshInstance3D" parent="Hips"]
+position = Vector3(-0.52, 0.54, 0)
+rotation = Vector3(0.15, 0, -0.42)
+mesh = SubResource("Limb")
+
+[node name="Arm_R" type="MeshInstance3D" parent="Hips"]
+position = Vector3(0.52, 0.54, 0)
+rotation = Vector3(0.15, 0, 0.42)
+mesh = SubResource("Limb")
+
+[node name="Leg_L" type="MeshInstance3D" parent="Hips"]
+position = Vector3(-0.22, -0.6, 0)
+mesh = SubResource("Limb")
+scale = Vector3(0.9, 0.72, 0.9)
+
+[node name="Leg_R" type="MeshInstance3D" parent="Hips"]
+position = Vector3(0.22, -0.6, 0)
+mesh = SubResource("Limb")
+scale = Vector3(0.9, 0.72, 0.9)
+
+[node name="Weapon" type="MeshInstance3D" parent="Hips"]
+position = Vector3(0, -0.15, 0)
+rotation = Vector3(0, 0, 1.5708)
+mesh = SubResource("Broom")

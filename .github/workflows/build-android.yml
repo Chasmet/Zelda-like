@@ -3,14 +3,14 @@ name: Build Android APK
 on:
   workflow_dispatch:
   push:
-    branches: [main, "agent/**", "work/**"]
+    branches: [main, "agent/**", "work/**", "character-assets-v9"]
   pull_request:
     branches: [main]
 
 jobs:
   export-android:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 55
     permissions:
       contents: read
 
@@ -19,6 +19,13 @@ jobs:
         uses: actions/checkout@v5
         with:
           lfs: true
+
+      - name: Reconstruct and verify Yvane GLB
+        run: |
+          python3 tools/decode_yvane_model.py
+          test -s uploaded_models/joueur_2_yvane.glb
+          file uploaded_models/joueur_2_yvane.glb
+          sha256sum uploaded_models/joueur_2_yvane.glb
 
       - name: Install Blender and visual-test dependencies
         run: |
@@ -53,7 +60,7 @@ jobs:
           STATUS=$?
           set -e
           cat /tmp/godot-runtime.log
-          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|ERROR:.*main_water_final|ERROR:.*player_water|ERROR:.*ci_water_physics|ERROR:.*main_mobile_final|ERROR:.*procedural_animator|ERROR:.*ci_full_playthrough" /tmp/godot-runtime.log; then
+          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|ERROR:.*main_water_final|ERROR:.*player_water|ERROR:.*ci_water_physics|ERROR:.*main_mobile_final|ERROR:.*procedural_animator|ERROR:.*adaptive_character_animator|ERROR:.*player_yvane|ERROR:.*uploaded_enemy|ERROR:.*ci_uploaded_characters|ERROR:.*ci_full_playthrough" /tmp/godot-runtime.log; then
             exit 1
           fi
           if [ "$STATUS" -ne 0 ] && [ "$STATUS" -ne 124 ]; then
@@ -76,6 +83,22 @@ jobs:
             exit "$STATUS"
           fi
           grep -q "CI TOUCH CHECK OK" /tmp/godot-touch.log
+
+      - name: Validate Yvane and the two reactive characters
+        run: |
+          GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
+          set +e
+          timeout 150s xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path . -- --ci-uploaded-characters > /tmp/godot-characters.log 2>&1
+          STATUS=$?
+          set -e
+          cat /tmp/godot-characters.log
+          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|CI UPLOADED CHARACTERS:" /tmp/godot-characters.log; then
+            exit 1
+          fi
+          if [ "$STATUS" -ne 0 ]; then
+            exit "$STATUS"
+          fi
+          grep -q "CI UPLOADED CHARACTERS OK" /tmp/godot-characters.log
 
       - name: Play all 10 zones and restore partial saves
         run: |
@@ -157,12 +180,16 @@ jobs:
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/player_water.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_mobile_final.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/procedural_animator.gdc'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_walk_animation_check.gdc'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_full_playthrough.gdc'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_water_physics_check.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/adaptive_character_animator.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/player_yvane.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/uploaded_enemy.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_uploaded_characters_check.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/uploaded_models/joueur_2_yvane.glb'
+          unzip -l "$APK_PATH" | grep -q 'assets/scenes/characters/soldat_ile_1_model.tscn'
+          unzip -l "$APK_PATH" | grep -q 'assets/scenes/characters/sorciere_cauchemars_boss_model.tscn'
           unzip -l "$APK_PATH" | grep -q 'assets/generated_models/hero_knight.glb'
           mkdir -p build/final
-          TARGET="build/final/ZeldaLike-Water-Softlock-Fix-V7-debug.apk"
+          TARGET="build/final/ZeldaLike-Yvane-Characters-V9-debug.apk"
           if [ "$(realpath "$APK_PATH")" != "$(realpath -m "$TARGET")" ]; then
             cp "$APK_PATH" "$TARGET"
           fi
@@ -173,9 +200,9 @@ jobs:
       - name: Upload Android APK
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Water-Softlock-Fix-V7-Android
+          name: ZeldaLike-Yvane-Characters-V9-Android
           path: |
-            build/final/ZeldaLike-Water-Softlock-Fix-V7-debug.apk
+            build/final/ZeldaLike-Yvane-Characters-V9-debug.apk
             build/final/SHA256.txt
           if-no-files-found: error
           retention-days: 30
@@ -183,7 +210,7 @@ jobs:
       - name: Upload visual validation
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Water-Softlock-Fix-V7-Validation
+          name: ZeldaLike-Yvane-Characters-V9-Validation
           path: build/validation/HUD-Carte-Portrait.png
           if-no-files-found: error
           retention-days: 30
@@ -191,7 +218,7 @@ jobs:
       - name: Upload generated Blender models
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Water-Softlock-Fix-V7-Models
+          name: ZeldaLike-Yvane-Characters-V9-Models
           path: generated_models/*.glb
           if-no-files-found: error
           retention-days: 30
