@@ -1,5 +1,9 @@
 extends "res://scripts/main_supercontinent_decor.gd"
 
+# Registre direct des quatre boss importés. Il évite de dépendre d'un nom de
+# nœud éventuellement ajusté par Godot et permet de contrôler l'asset exact.
+var spawned_bosses: Dictionary = {}
+
 func _build_portals() -> void:
 	var capital: Vector3 = SUPER_ZONE_CENTERS[8]
 	capital_portal_position = Vector3(capital.x + 38.0, _super_height(capital.x + 38.0, capital.z) + 0.4, capital.z)
@@ -27,6 +31,7 @@ func _spawn_player() -> void:
 	player.interact_requested.connect(_on_interact)
 
 func _spawn_guardians() -> void:
+	spawned_bosses.clear()
 	zone_remaining.resize(SUPER_ZONE_CENTERS.size())
 	zone_total.resize(SUPER_ZONE_CENTERS.size())
 	zone_completed.resize(SUPER_ZONE_CENTERS.size())
@@ -50,7 +55,9 @@ func _spawn_guardians() -> void:
 
 func _spawn_imported_boss(zone_index: int, spec: Dictionary) -> void:
 	var enemy = IMPORTED_ENEMY_SCRIPT.new()
-	enemy.name = String(spec["node"])
+	var boss_id := String(spec["node"])
+	var boss_asset := String(spec["asset"])
+	enemy.name = boss_id
 	enemy.set("visual_height", float(spec["height"]))
 	var center: Vector3 = SUPER_ZONE_CENTERS[zone_index]
 	var angle := 0.72 + float(zone_index) * 0.61
@@ -58,8 +65,11 @@ func _spawn_imported_boss(zone_index: int, spec: Dictionary) -> void:
 	var world_z := center.z + sin(angle) * 31.0
 	enemy.position = Vector3(world_x, _super_height(world_x, world_z) + 0.24, world_z)
 	enemy.set_meta("zone_index", zone_index)
+	enemy.set_meta("boss_id", boss_id)
+	enemy.set_meta("boss_asset", boss_asset)
 	add_child(enemy)
-	enemy.setup(player, zone_index + 2, String(spec["asset"]))
+	spawned_bosses[boss_id] = enemy
+	enemy.setup(player, zone_index + 2, boss_asset)
 	enemy.max_health = int(spec["health"])
 	enemy.health = enemy.max_health
 	enemy.damage = int(spec["damage"])
