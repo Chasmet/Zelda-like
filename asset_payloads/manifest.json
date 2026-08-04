@@ -1,0 +1,20 @@
+{
+  "yvane": {
+    "output": "uploaded_models/joueur_2_yvane.glb",
+    "raw_size": 220844,
+    "sha256": "045bc844558b23a976351194ab1e3e819023080d9ceaca7000f5cb1e9e56ac91",
+    "parts": ["yvane_00.b85"]
+  },
+  "soldier": {
+    "output": "uploaded_models/soldat_ile_1.glb",
+    "raw_size": 87836,
+    "sha256": "85fc3ca1c38dcb7335ffc0f4912bdffb7052bb2d269f37db2d9b692d845f1f76",
+    "parts": ["soldier_00.b85"]
+  },
+  "witch": {
+    "output": "uploaded_models/grande_sorciere_cauchemars.glb",
+    "raw_size": 2075464,
+    "sha256": "79babb3be4af23f46edba3ccd96523e8c4c92dc671706a485b81139e0c73a8f9",
+    "parts": ["witch_00.b85", "witch_01.b85", "witch_02.b85"]
+  }
+}
