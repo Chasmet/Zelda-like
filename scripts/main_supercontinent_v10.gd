@@ -150,7 +150,7 @@ func _show_zone_banner() -> void:
 	if not is_instance_valid(zone_banner):
 		return
 	zone_banner_token += 1
-	var token := zone_banner_token
+	var token: int = int(zone_banner_token)
 	zone_banner.text = "ZONE %d\n%s" % [current_zone + 1, SUPER_ZONE_NAMES[current_zone]]
 	zone_banner.modulate = ZONE_ACCENT_COLORS[current_zone]
 	zone_banner.visible = true
