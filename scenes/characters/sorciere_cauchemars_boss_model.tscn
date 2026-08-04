@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://uploaded_models/grande_sorciere_cauchemars.glb" id="1_witch"]
+
+[node name="SorciereCauchemarsBossModel" type="Node3D"]
+
+[node name="CharacterMesh" parent="." instance=ExtResource("1_witch")]
+position = Vector3(0, 1.42, 0)
+scale = Vector3(1.65, 1.65, 1.65)
