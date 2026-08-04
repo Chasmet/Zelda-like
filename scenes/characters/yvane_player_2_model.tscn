@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://uploaded_models/joueur_2_yvane.glb" id="1_yvane"]
+
+[node name="YvanePlayer2Model" type="Node3D"]
+
+[node name="CharacterMesh" parent="." instance=ExtResource("1_yvane")]
+position = Vector3(0, 0.925, 0)
+scale = Vector3(1, 1, 1)
