@@ -7,7 +7,16 @@ const YVANE_PLAYER_MODEL = "res://scenes/characters/yvane_player_2_model.tscn"
 const SOLDIER_ISLAND_1_MODEL = "res://scenes/characters/soldat_ile_1_model.tscn"
 const NIGHTMARE_WITCH_MODEL = "res://scenes/characters/sorciere_cauchemars_boss_model.tscn"
 
+const COMBO_DAMAGE: Array[int] = [34, 42, 54]
+const COMBO_RANGE: Array[float] = [3.55, 3.85, 4.15]
+const COMBO_IMPACT_DELAY: Array[float] = [0.13, 0.12, 0.16]
+const COMBO_MAX_TARGETS: Array[int] = [2, 2, 3]
+const COMBO_RESET_MSEC := 950
+
 var _uploaded_showcase_spawned: bool = false
+var _attack_combo_step: int = 0
+var _last_attack_time_msec: int = -10000
+var _attack_sequence: int = 0
 
 
 func _spawn_player() -> void:
@@ -100,9 +109,116 @@ func _spawn_uploaded_enemy(
 		enemy.aggro_range = 16.0
 		enemy.attack_range = 1.8
 
+	enemy.set_meta("uploaded_showcase", true)
+	enemy.defeated.connect(_on_uploaded_enemy_defeated)
+	enemies.append(enemy)
+
 	if enemy.has_method("_update_health_label"):
 		enemy.call("_update_health_label")
 	_add_character_name_label(enemy, display_name, 3.45 if boss else 2.55)
+
+
+func _on_player_attack() -> void:
+	if not is_instance_valid(player):
+		return
+
+	var now_msec: int = Time.get_ticks_msec()
+	if now_msec - _last_attack_time_msec > COMBO_RESET_MSEC:
+		_attack_combo_step = 0
+	else:
+		_attack_combo_step = (_attack_combo_step + 1) % COMBO_DAMAGE.size()
+	_last_attack_time_msec = now_msec
+	_attack_sequence += 1
+
+	var sequence: int = _attack_sequence
+	var combo_step: int = _attack_combo_step
+	_face_nearest_melee_enemy(float(COMBO_RANGE[combo_step]) + 0.55)
+
+	# Les dégâts sont appliqués au moment où la lame traverse réellement la cible,
+	# pas dès que le bouton est pressé.
+	await get_tree().create_timer(float(COMBO_IMPACT_DELAY[combo_step])).timeout
+	if sequence != _attack_sequence or not is_instance_valid(player):
+		return
+	_resolve_player_melee_hit(combo_step)
+
+
+func _resolve_player_melee_hit(combo_step: int) -> void:
+	var forward: Vector3 = player.get_forward()
+	forward.y = 0.0
+	if forward.length_squared() < 0.0001:
+		forward = Vector3.FORWARD
+	else:
+		forward = forward.normalized()
+
+	var attack_range: float = float(COMBO_RANGE[combo_step])
+	var damage: int = int(COMBO_DAMAGE[combo_step])
+	var maximum_targets: int = int(COMBO_MAX_TARGETS[combo_step])
+	var hit_count: int = 0
+
+	for enemy in enemies.duplicate():
+		if not _is_living_damageable_enemy(enemy):
+			continue
+
+		var offset: Vector3 = enemy.global_position - player.global_position
+		if absf(offset.y) > 3.2:
+			continue
+		var flat_offset := Vector3(offset.x, 0.0, offset.z)
+		var distance: float = flat_offset.length()
+		if distance <= 0.01 or distance > attack_range:
+			continue
+
+		var alignment: float = forward.dot(flat_offset / distance)
+		# À très courte distance, le coup touche même si les deux capsules se sont
+		# légèrement croisées. Plus loin, la cible doit rester dans le large arc frontal.
+		if distance > 2.25 and alignment < -0.35:
+			continue
+
+		enemy.take_damage(damage, player.global_position)
+		hit_count += 1
+		if hit_count >= maximum_targets:
+			break
+
+
+func _face_nearest_melee_enemy(search_range: float) -> void:
+	var nearest_enemy: Node3D = null
+	var nearest_distance: float = INF
+	for enemy in enemies:
+		if not _is_living_damageable_enemy(enemy):
+			continue
+		var offset: Vector3 = enemy.global_position - player.global_position
+		var flat_offset := Vector3(offset.x, 0.0, offset.z)
+		var distance: float = flat_offset.length()
+		if distance > 0.01 and distance <= search_range and distance < nearest_distance:
+			nearest_enemy = enemy
+			nearest_distance = distance
+
+	if not is_instance_valid(nearest_enemy):
+		return
+	var visual := player.get_node_or_null("Visual") as Node3D
+	if not is_instance_valid(visual):
+		return
+	var direction: Vector3 = nearest_enemy.global_position - player.global_position
+	direction.y = 0.0
+	if direction.length_squared() > 0.0001:
+		direction = direction.normalized()
+		visual.rotation.y = atan2(-direction.x, -direction.z)
+
+
+func _is_living_damageable_enemy(enemy) -> bool:
+	return (
+		is_instance_valid(enemy)
+		and enemy is Node3D
+		and enemy.has_method("take_damage")
+		and int(enemy.get("health")) > 0
+	)
+
+
+func _on_uploaded_enemy_defeated(enemy) -> void:
+	enemies.erase(enemy)
+	if not is_instance_valid(message_label):
+		return
+	var defeated_name: String = "la grande sorcière" if String(enemy.name).contains("Sorciere") else "le soldat"
+	_show_message("Yvane a vaincu %s !" % defeated_name, 3.0)
 
 
 func _add_character_name_label(character: Node3D, title: String, height: float) -> void:
