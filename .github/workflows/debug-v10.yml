@@ -68,6 +68,7 @@ jobs:
                   "res://scripts/main_supercontinent_decor.gd",
                   "res://scripts/main_supercontinent_gameplay.gd",
                   "res://scripts/main_supercontinent_v10.gd",
+                  "res://scripts/main_supercontinent_final.gd",
                   "res://scripts/uploaded_enemy.gd",
                   "res://scripts/player_yvane.gd",
                   "res://scripts/ci_walk_animation_check.gd",
@@ -82,6 +83,16 @@ jobs:
           EOF
           "$GODOT" --headless --path . --script tools/check_v10_scripts.gd > build/debug-v10/script-load.log 2>&1 || true
           timeout 70s "$GODOT" --headless --path . --quit-after 35 > build/debug-v10/runtime.log 2>&1 || true
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("scripts/ci_walk_animation_check.gd")
+          text = path.read_text(encoding="utf-8")
+          old = 'push_error("CI TOUCH CHECK: hero failed to stop after release; travelled %.4f" % stopping_distance)'
+          new = 'push_error("CI TOUCH CHECK: hero failed to stop after release; travelled %.4f debug=%s" % [stopping_distance, player.call("get_movement_debug")])'
+          if old not in text:
+              raise SystemExit("debug patch target not found")
+          path.write_text(text.replace(old, new), encoding="utf-8")
+          PY
           timeout 145s xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path . -- --ci-walk-check > build/debug-v10/touch.log 2>&1 || echo "touch_status=$?" > build/debug-v10/touch-status.txt
           grep -nE "SCRIPT ERROR|Parse Error|ERROR:|Could not resolve|Cannot infer|Warning treated|Invalid|CI TOUCH CHECK" build/debug-v10/*.log > build/debug-v10/errors-only.log || true
           cat build/debug-v10/touch.log
