@@ -1,6 +1,12 @@
 class_name YvanePlayerController
 extends "res://scripts/player_chk.gd"
 
+# Le contrôle mobile doit s'arrêter rapidement dès que le doigt quitte le
+# joystick. Une accélération plus franche réduit aussi l'inertie au relâchement.
+func _ready() -> void:
+	acceleration = 64.0
+	super._ready()
+
 # Caméra troisième personne rapprochée : le personnage reste entier à l'écran,
 # mais il est nettement plus proche que dans les versions précédentes.
 func _build_camera() -> void:
