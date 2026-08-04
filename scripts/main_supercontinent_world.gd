@@ -312,7 +312,7 @@ func _add_river_visual(node_name: String, north_south: bool) -> void:
 		if index > 0:
 			var delta := point - previous
 			var midpoint := (point + previous) * 0.5
-			var water := _visual_box(node_name, Vector3(16.5, 0.05, delta.length() + 0.7), midpoint, Color(0.025, 0.38, 0.61, 0.86))
+			var water: Node3D = _visual_box(node_name, Vector3(16.5, 0.05, delta.length() + 0.7), midpoint, Color(0.025, 0.38, 0.61, 0.86))
 			water.rotation.y = atan2(delta.x, delta.z)
 		previous = point
 
