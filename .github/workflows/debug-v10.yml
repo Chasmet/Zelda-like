@@ -3,6 +3,8 @@ name: Debug V10 Godot
 on:
   push:
     branches: ["supercontinent-v10"]
+  pull_request:
+    branches: [main]
 
 jobs:
   parser-log:
