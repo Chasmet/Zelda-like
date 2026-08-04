@@ -44,7 +44,7 @@ func _run_physics_check() -> void:
 	var river_water: Vector3 = points.get("river_water", Vector3.ZERO)
 	var deep_water: Vector3 = points.get("deep_water", Vector3.ZERO)
 	var water: Dictionary = player.get_water_debug()
-	var bottom_y := float(water.get("bottom_y", -8.5))
+	var bottom_y: float = float(water.get("bottom_y", -8.5))
 	var safe_position: Vector3 = player.get_safe_save_position()
 	player.set_spawn(safe_position)
 	player.max_health = 100
@@ -80,26 +80,26 @@ func _run_physics_check() -> void:
 	await _wait_physics_frames(50)
 	_set_game_move(game, player, Vector2.ZERO)
 	var swim_end: Vector3 = player.global_position
-	var swim_distance := Vector2(swim_end.x - swim_start.x, swim_end.z - swim_start.z).length()
+	var swim_distance: float = Vector2(swim_end.x - swim_start.x, swim_end.z - swim_start.z).length()
 	if swim_distance < 1.8 or not swim_end.is_finite():
 		_fail("la nage horizontale est bloquée : %.3f m" % swim_distance, 79)
 		return
 	var drift_start: Vector3 = player.global_position
 	await _wait_physics_frames(35)
-	var drift_distance := Vector2(player.global_position.x - drift_start.x, player.global_position.z - drift_start.z).length()
+	var drift_distance: float = Vector2(player.global_position.x - drift_start.x, player.global_position.z - drift_start.z).length()
 	if drift_distance > 1.5:
 		_fail("l'inertie aquatique continue trop longtemps", 80)
 		return
 
-	var dive_start_y := player.global_position.y
-	var oxygen_before := player.oxygen
+	var dive_start_y: float = float(player.global_position.y)
+	var oxygen_before: float = float(player.oxygen)
 	player.request_swim_vertical(-1.0, 1.45)
 	await _wait_physics_frames(78)
 	water = player.get_water_debug()
-	if dive_start_y - player.global_position.y < 1.2 or not bool(water.get("underwater", false)):
+	if dive_start_y - float(player.global_position.y) < 1.2 or not bool(water.get("underwater", false)):
 		_fail("la commande PLONGER ne descend pas sous la surface", 81)
 		return
-	if player.oxygen >= oxygen_before - 0.35:
+	if float(player.oxygen) >= oxygen_before - 0.35:
 		_fail("l'oxygène ne diminue pas pendant la plongée", 82)
 		return
 
@@ -115,7 +115,7 @@ func _run_physics_check() -> void:
 	player.invulnerability = 0.0
 	player.oxygen = player.max_oxygen
 	player.request_swim_vertical(1.0, 2.6)
-	var surfaced := false
+	var surfaced: bool = false
 	for _frame in range(190):
 		await get_tree().physics_frame
 		water = player.get_water_debug()
@@ -152,7 +152,7 @@ func _run_physics_check() -> void:
 	_set_game_move(game, player, Vector2(0.0, -1.0))
 	await _wait_physics_frames(42)
 	_set_game_move(game, player, Vector2.ZERO)
-	var walk_distance := Vector2(player.global_position.x - walk_start.x, player.global_position.z - walk_start.z).length()
+	var walk_distance: float = Vector2(player.global_position.x - walk_start.x, player.global_position.z - walk_start.z).length()
 	if walk_distance < 1.4:
 		_fail("la marche terrestre est bloquée", 88)
 		return
@@ -160,14 +160,14 @@ func _run_physics_check() -> void:
 		_fail("le héros ne reste pas posé au sol", 89)
 		return
 
-	var jump_start_y := player.global_position.y
-	var peak_y := jump_start_y
+	var jump_start_y: float = float(player.global_position.y)
+	var peak_y: float = jump_start_y
 	Input.action_press("jump")
 	await get_tree().physics_frame
 	Input.action_release("jump")
 	for frame_index in range(130):
 		await get_tree().physics_frame
-		peak_y = maxf(peak_y, player.global_position.y)
+		peak_y = maxf(peak_y, float(player.global_position.y))
 		if frame_index > 25 and player.is_on_floor():
 			break
 	if peak_y - jump_start_y < 0.9 or not player.is_on_floor():
@@ -203,7 +203,7 @@ func _set_game_move(game, player, value: Vector2) -> void:
 
 
 func _wait_for_loaded_world(game):
-	var started_at := Time.get_ticks_msec()
+	var started_at: int = Time.get_ticks_msec()
 	while Time.get_ticks_msec() - started_at < int(MAX_WAIT_SECONDS * 1000.0):
 		await get_tree().process_frame
 		var player = game.get("player")
@@ -221,7 +221,7 @@ func _wait_physics_frames(frame_count: int) -> void:
 
 
 func _wait_for_floor(player, seconds: float) -> bool:
-	var deadline := Time.get_ticks_msec() + int(seconds * 1000.0)
+	var deadline: int = Time.get_ticks_msec() + int(seconds * 1000.0)
 	while Time.get_ticks_msec() < deadline:
 		await get_tree().physics_frame
 		if player.is_on_floor():
