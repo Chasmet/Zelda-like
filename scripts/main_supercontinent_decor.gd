@@ -118,7 +118,7 @@ func _add_ground_route(zone_a: int, zone_b: int, width: float) -> void:
 		if is_bridge:
 			road_y = WATER_SURFACE_Y + 0.34
 		var size := Vector3(width, 0.28 if is_bridge else 0.08, delta.length() + 0.75)
-		var road = _static_box("ContinentBridge", size, Vector3(midpoint.x, road_y, midpoint.z), Color(0.43, 0.32, 0.20)) if is_bridge else _visual_box("ContinentRoad", size, Vector3(midpoint.x, road_y, midpoint.z), Color(0.46, 0.34, 0.21))
+		var road: Node3D = _static_box("ContinentBridge", size, Vector3(midpoint.x, road_y, midpoint.z), Color(0.43, 0.32, 0.20)) if is_bridge else _visual_box("ContinentRoad", size, Vector3(midpoint.x, road_y, midpoint.z), Color(0.46, 0.34, 0.21))
 		road.rotation.y = atan2(delta.x, delta.z)
 		previous = point
 
@@ -131,7 +131,7 @@ func _add_forest_path() -> void:
 		var point := Vector3(x, 0.0, z)
 		var midpoint := (previous + point) * 0.5
 		var delta := point - previous
-		var path := _visual_box("ForestPath", Vector3(4.2, 0.07, delta.length() + 0.6), Vector3(midpoint.x, _super_height(midpoint.x, midpoint.z) + 0.09, midpoint.z), Color(0.38, 0.27, 0.16))
+		var path: Node3D = _visual_box("ForestPath", Vector3(4.2, 0.07, delta.length() + 0.6), Vector3(midpoint.x, _super_height(midpoint.x, midpoint.z) + 0.09, midpoint.z), Color(0.38, 0.27, 0.16))
 		path.rotation.y = atan2(delta.x, delta.z)
 		previous = point
 
