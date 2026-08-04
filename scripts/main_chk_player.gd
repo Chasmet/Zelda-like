@@ -1,6 +1,6 @@
 extends "res://scripts/main_water_final.gd"
 
-const CHK_PLAYER_SCRIPT = preload("res://scripts/player_chk.gd")
+const YVANE_PLAYER_SCRIPT = preload("res://scripts/player_yvane.gd")
 const UPLOADED_ENEMY_SCRIPT = preload("res://scripts/uploaded_enemy.gd")
 
 const YVANE_PLAYER_MODEL = "res://scenes/characters/yvane_player_2_model.tscn"
@@ -15,7 +15,7 @@ func _spawn_player() -> void:
 		push_error("Le modèle joueur 2 Yvane est absent ou non importable")
 		return
 
-	player = CHK_PLAYER_SCRIPT.new()
+	player = YVANE_PLAYER_SCRIPT.new()
 	player.name = "YvanePlayer2"
 	var center: Vector3 = ZONE_CENTERS[START_ZONE]
 	var spawn_x: float = center.x
