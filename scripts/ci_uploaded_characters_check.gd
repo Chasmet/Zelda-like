@@ -14,8 +14,6 @@ const BOSS_ASSETS = {
 func _ready() -> void:
 	if "--ci-uploaded-characters" not in OS.get_cmdline_user_args():
 		return
-	# Le test doit toujours commencer avec les vingt gardiens d'origine. Une
-	# sauvegarde provenant d'un test précédent ne doit pas supprimer un boss.
 	_remove_test_save()
 	call_deferred("_run_check")
 
@@ -41,6 +39,11 @@ func _run_check() -> void:
 		_fail("boss manquant(s). État réel : %s" % _boss_debug_state(game), 42)
 		return
 
+	# Figer immédiatement les quatre boss pendant le contrôle. Sur cette carte
+	# très étendue, aucun boss ne doit continuer sa physique pendant les attentes
+	# d'animation du test et risquer de tomber hors du terrain.
+	_freeze_bosses(resolved_bosses)
+
 	var yvane_model := player.get_node_or_null("Visual/ImportedHeroModel/HeroBlenderAsset")
 	var yvane_animator: Node = player.get("_model_animator")
 	if not is_instance_valid(yvane_model):
@@ -49,6 +52,29 @@ func _run_check() -> void:
 	if not _animator_ready(yvane_animator):
 		_fail("les animations de Yvane ne sont pas prêtes", 44)
 		return
+
+	# Vérifier tous les assets et animateurs avant la première attente temporelle.
+	for boss_id_variant in BOSS_ASSETS.keys():
+		var boss_id := String(boss_id_variant)
+		var boss: Node = resolved_bosses.get(boss_id)
+		if not is_instance_valid(boss):
+			_fail("référence du boss invalide avant animation : %s" % boss_id, 47)
+			return
+		var model := boss.get_node_or_null("Visual/ImportedEnemyModel/EnemyBlenderAsset")
+		if not is_instance_valid(model):
+			_fail("le GLB exact n'est pas affiché pour %s" % boss_id, 48)
+			return
+		var expected_asset := String(BOSS_ASSETS[boss_id])
+		if String(boss.get_meta("boss_asset", "")) != expected_asset:
+			_fail("métadonnée d'asset incorrecte pour %s" % boss_id, 49)
+			return
+		if String(model.get_meta("source_asset", "")) != expected_asset:
+			_fail("mauvais GLB utilisé pour %s" % boss_id, 50)
+			return
+		var animator: Node = boss.get("_model_animator")
+		if not _animator_ready(animator):
+			_fail("animation absente pour %s" % boss_id, 51)
+			return
 
 	var start_position: Vector3 = player.global_position
 	var pose_before: Vector4 = yvane_animator.call("get_animation_signature")
@@ -71,37 +97,27 @@ func _run_check() -> void:
 		var boss_id := String(boss_id_variant)
 		var boss: Node = resolved_bosses.get(boss_id)
 		if not is_instance_valid(boss):
-			_fail("référence du boss invalide : %s" % boss_id, 47)
-			return
-		var model := boss.get_node_or_null("Visual/ImportedEnemyModel/EnemyBlenderAsset")
-		if not is_instance_valid(model):
-			_fail("le GLB exact n'est pas affiché pour %s" % boss_id, 48)
-			return
-		var expected_asset := String(BOSS_ASSETS[boss_id])
-		if String(boss.get_meta("boss_asset", "")) != expected_asset:
-			_fail("métadonnée d'asset incorrecte pour %s" % boss_id, 49)
-			return
-		if String(model.get_meta("source_asset", "")) != expected_asset:
-			_fail("mauvais GLB utilisé pour %s" % boss_id, 50)
+			_fail("référence du boss invalide pendant animation : %s" % boss_id, 52)
 			return
 		var animator: Node = boss.get("_model_animator")
-		if not _animator_ready(animator):
-			_fail("animation absente pour %s" % boss_id, 51)
-			return
-
-		boss.set_physics_process(false)
 		var boss_pose_before: Vector4 = animator.call("get_animation_signature")
 		animator.call("set_locomotion", 1.0, false)
 		await get_tree().create_timer(0.42).timeout
+		if not is_instance_valid(boss) or not is_instance_valid(animator):
+			_fail("le boss a été libéré pendant son animation : %s" % boss_id, 53)
+			return
 		var boss_pose_after: Vector4 = animator.call("get_animation_signature")
 		var pose_delta: float = (boss_pose_after - boss_pose_before).length()
 		if pose_delta < 0.002:
 			animator.call("play_attack")
 			await get_tree().create_timer(0.32).timeout
+			if not is_instance_valid(animator):
+				_fail("l'animateur du boss a été libéré : %s" % boss_id, 54)
+				return
 			var attack_pose: Vector4 = animator.call("get_animation_signature")
 			pose_delta = (attack_pose - boss_pose_after).length()
 		if pose_delta < 0.002:
-			_fail("le boss reste figé : %s" % boss_id, 52)
+			_fail("le boss reste figé : %s" % boss_id, 55)
 			return
 		animated_bosses += 1
 
@@ -112,6 +128,18 @@ func _run_check() -> void:
 	)
 	_remove_test_save()
 	get_tree().quit()
+
+
+func _freeze_bosses(resolved_bosses: Dictionary) -> void:
+	for boss_variant in resolved_bosses.values():
+		if not is_instance_valid(boss_variant):
+			continue
+		var boss := boss_variant as CharacterBody3D
+		boss.set_physics_process(false)
+		boss.velocity = Vector3.ZERO
+		var spawn_value = boss.get("spawn_position")
+		if spawn_value is Vector3:
+			boss.global_position = spawn_value
 
 
 func _resolve_all_bosses(game: Node) -> Dictionary:
