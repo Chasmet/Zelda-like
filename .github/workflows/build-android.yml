@@ -3,7 +3,7 @@ name: Build Android APK
 on:
   workflow_dispatch:
   push:
-    branches: [main, "agent/**", "work/**", "character-assets-v9"]
+    branches: [main, "agent/**", "work/**", "character-assets-v9", "supercontinent-v10"]
   pull_request:
     branches: [main]
 
@@ -41,6 +41,29 @@ jobs:
           test "$(find generated_models -maxdepth 1 -type f -name '*.glb' | wc -l)" -eq 12
           test -s generated_models/hero_knight.glb
 
+      - name: Convert the four uploaded bosses for Godot without changing their appearance
+        run: |
+          convert_boss() {
+            INPUT="$1"
+            TEMP="${INPUT%.glb}.godot-compatible.glb"
+            npx --yes @gltf-transform/cli@4.4.1 copy "$INPUT" "$TEMP"
+            test -s "$TEMP"
+            mv "$TEMP" "$INPUT"
+          }
+          convert_boss "asset_payloads/yvane/baggy boss .glb"
+          convert_boss "asset_payloads/yvane/boss ile 4.glb"
+          convert_boss "asset_payloads/yvane/boss sorcière.glb"
+          convert_boss "asset_payloads/yvane/grande boss sorcière des cauchemars.glb"
+          for MODEL in \
+            "asset_payloads/yvane/baggy boss .glb" \
+            "asset_payloads/yvane/boss ile 4.glb" \
+            "asset_payloads/yvane/boss sorcière.glb" \
+            "asset_payloads/yvane/grande boss sorcière des cauchemars.glb"; do
+            test -s "$MODEL"
+            npx --yes @gltf-transform/cli@4.4.1 inspect "$MODEL"
+            sha256sum "$MODEL"
+          done
+
       - name: Download Godot for runtime validation
         run: |
           rm -rf /tmp/godot /tmp/godot.zip
@@ -60,7 +83,7 @@ jobs:
           STATUS=$?
           set -e
           cat /tmp/godot-runtime.log
-          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|ERROR:.*main_water_final|ERROR:.*player_water|ERROR:.*ci_water_physics|ERROR:.*main_mobile_final|ERROR:.*procedural_animator|ERROR:.*adaptive_character_animator|ERROR:.*player_yvane|ERROR:.*uploaded_enemy|ERROR:.*ci_uploaded_characters|ERROR:.*ci_full_playthrough" /tmp/godot-runtime.log; then
+          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|ERROR:.*main_supercontinent|ERROR:.*main_water_final|ERROR:.*player_water|ERROR:.*ci_water_physics|ERROR:.*main_mobile_final|ERROR:.*procedural_animator|ERROR:.*adaptive_character_animator|ERROR:.*player_yvane|ERROR:.*uploaded_enemy|ERROR:.*ci_uploaded_characters|ERROR:.*ci_full_playthrough" /tmp/godot-runtime.log; then
             exit 1
           fi
           if [ "$STATUS" -ne 0 ] && [ "$STATUS" -ne 124 ]; then
@@ -84,7 +107,7 @@ jobs:
           fi
           grep -q "CI TOUCH CHECK OK" /tmp/godot-touch.log
 
-      - name: Validate Yvane and the two reactive characters
+      - name: Validate Yvane and the four imported bosses
         run: |
           GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
           set +e
@@ -176,6 +199,10 @@ jobs:
           unzip -l "$APK_PATH" | grep -q 'classes.dex'
           unzip -l "$APK_PATH" | grep -q 'lib/arm64-v8a/libgodot_android.so'
           unzip -l "$APK_PATH" | grep -q 'assets/carte monde.png'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_supercontinent_world.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_supercontinent_decor.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_supercontinent_gameplay.gdc'
+          unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_supercontinent_v10.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_water_final.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/player_water.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_mobile_final.gdc'
@@ -185,11 +212,13 @@ jobs:
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/uploaded_enemy.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_uploaded_characters_check.gdc'
           unzip -l "$APK_PATH" | grep -q 'assets/uploaded_models/joueur_2_yvane.glb'
-          unzip -l "$APK_PATH" | grep -q 'assets/scenes/characters/soldat_ile_1_model.tscn'
-          unzip -l "$APK_PATH" | grep -q 'assets/scenes/characters/sorciere_cauchemars_boss_model.tscn'
+          unzip -l "$APK_PATH" | grep -q 'assets/asset_payloads/yvane/baggy boss .glb'
+          unzip -l "$APK_PATH" | grep -q 'assets/asset_payloads/yvane/boss ile 4.glb'
+          unzip -l "$APK_PATH" | grep -q 'assets/asset_payloads/yvane/boss sorcière.glb'
+          unzip -l "$APK_PATH" | grep -q 'assets/asset_payloads/yvane/grande boss sorcière des cauchemars.glb'
           unzip -l "$APK_PATH" | grep -q 'assets/generated_models/hero_knight.glb'
           mkdir -p build/final
-          TARGET="build/final/ZeldaLike-Yvane-Characters-V9-debug.apk"
+          TARGET="build/final/ZeldaLike-Supercontinent-Bosses-V10-debug.apk"
           if [ "$(realpath "$APK_PATH")" != "$(realpath -m "$TARGET")" ]; then
             cp "$APK_PATH" "$TARGET"
           fi
@@ -200,9 +229,9 @@ jobs:
       - name: Upload Android APK
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Yvane-Characters-V9-Android
+          name: ZeldaLike-Supercontinent-Bosses-V10-Android
           path: |
-            build/final/ZeldaLike-Yvane-Characters-V9-debug.apk
+            build/final/ZeldaLike-Supercontinent-Bosses-V10-debug.apk
             build/final/SHA256.txt
           if-no-files-found: error
           retention-days: 30
@@ -210,7 +239,7 @@ jobs:
       - name: Upload visual validation
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Yvane-Characters-V9-Validation
+          name: ZeldaLike-Supercontinent-Bosses-V10-Validation
           path: build/validation/HUD-Carte-Portrait.png
           if-no-files-found: error
           retention-days: 30
@@ -218,7 +247,7 @@ jobs:
       - name: Upload generated Blender models
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Yvane-Characters-V9-Models
+          name: ZeldaLike-Supercontinent-Bosses-V10-Models
           path: generated_models/*.glb
           if-no-files-found: error
           retention-days: 30
