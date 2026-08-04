@@ -74,8 +74,8 @@ func _spawn_uploaded_enemy(
 
 	var enemy = UPLOADED_ENEMY_SCRIPT.new()
 	enemy.name = node_name
-	var spawn_x := player.global_position.x + offset.x
-	var spawn_z := player.global_position.z + offset.z
+	var spawn_x: float = float(player.global_position.x + offset.x)
+	var spawn_z: float = float(player.global_position.z + offset.z)
 	enemy.position = Vector3(
 		spawn_x,
 		_terrain_world_height(START_ZONE, spawn_x, spawn_z) + 0.18,
