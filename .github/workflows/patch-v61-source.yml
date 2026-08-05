@@ -1,0 +1,40 @@
+name: Patch V6.1 Source
+
+on:
+  push:
+    branches: ["v6.1-physics-world"]
+
+permissions:
+  contents: write
+
+jobs:
+  patch-source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: v6.1-physics-world
+      - name: Fix inferred tree coordinates
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/main_supercontinent_decor.gd')
+          text = path.read_text(encoding='utf-8')
+          replacements = {
+              '\t\tvar x := center.x + entry.x': '\t\tvar x: float = center.x + float(entry.x)',
+              '\t\tvar z := center.z + entry.z': '\t\tvar z: float = center.z + float(entry.z)',
+          }
+          for old, new in replacements.items():
+              if old in text:
+                  text = text.replace(old, new)
+          path.write_text(text, encoding='utf-8')
+          PY
+          if git diff --quiet; then
+            echo "Source already fixed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/main_supercontinent_decor.gd
+          git commit -m "Fix V6.1 decor type inference"
+          git push origin HEAD:v6.1-physics-world
