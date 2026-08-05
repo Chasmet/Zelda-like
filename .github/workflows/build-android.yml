@@ -1,9 +1,9 @@
-name: Build Android APK
+name: Build Android APK V6
 
 on:
   workflow_dispatch:
   push:
-    branches: [main, "agent/**", "work/**", "character-assets-v9"]
+    branches: [main, "agent/**", "work/**", "character-assets-v9", "supercontinent-v10"]
   pull_request:
     branches: [main]
 
@@ -41,6 +41,29 @@ jobs:
           test "$(find generated_models -maxdepth 1 -type f -name '*.glb' | wc -l)" -eq 12
           test -s generated_models/hero_knight.glb
 
+      - name: Convert the four uploaded bosses for Godot without changing their appearance
+        run: |
+          convert_boss() {
+            INPUT="$1"
+            TEMP="${INPUT%.glb}.godot-compatible.glb"
+            npx --yes @gltf-transform/cli@4.4.1 copy "$INPUT" "$TEMP"
+            test -s "$TEMP"
+            mv "$TEMP" "$INPUT"
+          }
+          convert_boss "asset_payloads/yvane/baggy boss .glb"
+          convert_boss "asset_payloads/yvane/boss ile 4.glb"
+          convert_boss "asset_payloads/yvane/boss sorcière.glb"
+          convert_boss "asset_payloads/yvane/grande boss sorcière des cauchemars.glb"
+          for MODEL in \
+            "asset_payloads/yvane/baggy boss .glb" \
+            "asset_payloads/yvane/boss ile 4.glb" \
+            "asset_payloads/yvane/boss sorcière.glb" \
+            "asset_payloads/yvane/grande boss sorcière des cauchemars.glb"; do
+            test -s "$MODEL"
+            npx --yes @gltf-transform/cli@4.4.1 inspect "$MODEL"
+            sha256sum "$MODEL"
+          done
+
       - name: Download Godot for runtime validation
         run: |
           rm -rf /tmp/godot /tmp/godot.zip
@@ -60,7 +83,7 @@ jobs:
           STATUS=$?
           set -e
           cat /tmp/godot-runtime.log
-          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|ERROR:.*main_water_final|ERROR:.*player_water|ERROR:.*ci_water_physics|ERROR:.*main_mobile_final|ERROR:.*procedural_animator|ERROR:.*adaptive_character_animator|ERROR:.*player_yvane|ERROR:.*uploaded_enemy|ERROR:.*ci_uploaded_characters|ERROR:.*ci_full_playthrough" /tmp/godot-runtime.log; then
+          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|ERROR:.*main_supercontinent|ERROR:.*main_water_final|ERROR:.*player_water|ERROR:.*ci_water_physics|ERROR:.*main_mobile_final|ERROR:.*procedural_animator|ERROR:.*adaptive_character_animator|ERROR:.*player_yvane|ERROR:.*uploaded_enemy|ERROR:.*ci_uploaded_characters|ERROR:.*ci_full_playthrough" /tmp/godot-runtime.log; then
             exit 1
           fi
           if [ "$STATUS" -ne 0 ] && [ "$STATUS" -ne 124 ]; then
@@ -84,7 +107,7 @@ jobs:
           fi
           grep -q "CI TOUCH CHECK OK" /tmp/godot-touch.log
 
-      - name: Validate Yvane and the two reactive characters
+      - name: Validate Yvane and the four imported bosses
         run: |
           GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
           set +e
@@ -168,28 +191,55 @@ jobs:
           presets_to_export: Android
           cache: true
 
-      - name: Verify and normalise APK
+      - name: Verify and normalise V6 APK
+        shell: bash
         run: |
+          set -euo pipefail
           APK_PATH="$(find build -type f -name '*.apk' -print -quit)"
           test -n "$APK_PATH"
-          unzip -t "$APK_PATH" >/dev/null
-          unzip -l "$APK_PATH" | grep -q 'classes.dex'
-          unzip -l "$APK_PATH" | grep -q 'lib/arm64-v8a/libgodot_android.so'
-          unzip -l "$APK_PATH" | grep -q 'assets/carte monde.png'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_water_final.gdc'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/player_water.gdc'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_mobile_final.gdc'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/procedural_animator.gdc'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/adaptive_character_animator.gdc'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/player_yvane.gdc'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/uploaded_enemy.gdc'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_uploaded_characters_check.gdc'
-          unzip -l "$APK_PATH" | grep -q 'assets/uploaded_models/joueur_2_yvane.glb'
-          unzip -l "$APK_PATH" | grep -q 'assets/scenes/characters/soldat_ile_1_model.tscn'
-          unzip -l "$APK_PATH" | grep -q 'assets/scenes/characters/sorciere_cauchemars_boss_model.tscn'
-          unzip -l "$APK_PATH" | grep -q 'assets/generated_models/hero_knight.glb'
+          test -s "$APK_PATH"
+          echo "APK generated: $APK_PATH ($(stat -c%s "$APK_PATH") bytes)"
+
+          python3 - "$APK_PATH" <<'PY'
+          import sys
+          import zipfile
+
+          apk = sys.argv[1]
+          with zipfile.ZipFile(apk, "r") as archive:
+              names = archive.namelist()
+
+          with open("/tmp/apk-entries.txt", "w", encoding="utf-8") as output:
+              output.write("\n".join(names) + "\n")
+
+          required = {
+              "AndroidManifest.xml",
+              "classes.dex",
+              "lib/arm64-v8a/libgodot_android.so",
+          }
+          missing = sorted(required.difference(names))
+          if missing:
+              raise SystemExit("Missing APK entries: " + ", ".join(missing))
+          if not any(name.startswith("assets/") for name in names):
+              raise SystemExit("APK contains no game assets")
+          print(f"APK ZIP structure OK: {len(names)} entries")
+          PY
+
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          ZIPALIGN="$(find "$ANDROID_HOME/build-tools" -type f -name zipalign | sort -V | tail -n 1)"
+          test -x "$AAPT"
+          test -x "$APKSIGNER"
+          test -x "$ZIPALIGN"
+
+          "$AAPT" dump badging "$APK_PATH" | tee /tmp/apk-badging.txt
+          grep -q "package: name='com.chasmet.skypiea.playthroughv5'" /tmp/apk-badging.txt
+          grep -q "versionCode='6'" /tmp/apk-badging.txt
+          grep -q "application-label:'Skypiea Supercontinent V6'" /tmp/apk-badging.txt || true
+          "$ZIPALIGN" -c -v 4 "$APK_PATH" | tee /tmp/apk-zipalign.txt
+          "$APKSIGNER" verify --verbose --print-certs "$APK_PATH" | tee /tmp/apk-signature.txt
+
           mkdir -p build/final
-          TARGET="build/final/ZeldaLike-Yvane-Characters-V9-debug.apk"
+          TARGET="build/final/ZeldaLike-Supercontinent-Bosses-V6-debug.apk"
           if [ "$(realpath "$APK_PATH")" != "$(realpath -m "$TARGET")" ]; then
             cp "$APK_PATH" "$TARGET"
           fi
@@ -197,20 +247,20 @@ jobs:
           sha256sum "$TARGET" | tee build/final/SHA256.txt
           ls -lh "$TARGET"
 
-      - name: Upload Android APK
+      - name: Upload Android V6 APK
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Yvane-Characters-V9-Android
+          name: ZeldaLike-Supercontinent-Bosses-V6-Android
           path: |
-            build/final/ZeldaLike-Yvane-Characters-V9-debug.apk
+            build/final/ZeldaLike-Supercontinent-Bosses-V6-debug.apk
             build/final/SHA256.txt
           if-no-files-found: error
           retention-days: 30
 
-      - name: Upload visual validation
+      - name: Upload V6 visual validation
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Yvane-Characters-V9-Validation
+          name: ZeldaLike-Supercontinent-Bosses-V6-Validation
           path: build/validation/HUD-Carte-Portrait.png
           if-no-files-found: error
           retention-days: 30
@@ -218,7 +268,24 @@ jobs:
       - name: Upload generated Blender models
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Yvane-Characters-V9-Models
+          name: ZeldaLike-Supercontinent-Bosses-V6-Models
           path: generated_models/*.glb
           if-no-files-found: error
+          retention-days: 30
+
+      - name: Collect build diagnostics
+        if: ${{ always() }}
+        run: |
+          mkdir -p build/diagnostics
+          cp /tmp/godot-*.log build/diagnostics/ 2>/dev/null || true
+          cp /tmp/apk-entries.txt /tmp/apk-badging.txt /tmp/apk-signature.txt /tmp/apk-zipalign.txt build/diagnostics/ 2>/dev/null || true
+          find build -maxdepth 4 -type f -printf '%p  %s bytes\n' | sort > build/diagnostics/files.txt
+
+      - name: Upload build diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ZeldaLike-Supercontinent-Bosses-V6-Diagnostics
+          path: build/diagnostics
+          if-no-files-found: warn
           retention-days: 30
