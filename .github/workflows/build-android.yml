@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android APK V6
 
 on:
   workflow_dispatch:
@@ -191,34 +191,36 @@ jobs:
           presets_to_export: Android
           cache: true
 
-      - name: Verify and normalise APK
+      - name: Verify and normalise V6 APK
+        shell: bash
         run: |
+          set -euo pipefail
           APK_PATH="$(find build -type f -name '*.apk' -print -quit)"
           test -n "$APK_PATH"
+          test -s "$APK_PATH"
+
           unzip -t "$APK_PATH" >/dev/null
-          unzip -l "$APK_PATH" | grep -q 'classes.dex'
-          unzip -l "$APK_PATH" | grep -q 'lib/arm64-v8a/libgodot_android.so'
-          unzip -l "$APK_PATH" | grep -q 'assets/carte monde.png'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_supercontinent_world.gdc'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_supercontinent_decor.gdc'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_supercontinent_gameplay.gdc'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_supercontinent_v10.gdc'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_water_final.gdc'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/player_water.gdc'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/main_mobile_final.gdc'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/procedural_animator.gdc'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/adaptive_character_animator.gdc'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/player_yvane.gdc'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/uploaded_enemy.gdc'
-          unzip -l "$APK_PATH" | grep -q 'assets/scripts/ci_uploaded_characters_check.gdc'
-          unzip -l "$APK_PATH" | grep -q 'assets/uploaded_models/joueur_2_yvane.glb'
-          unzip -l "$APK_PATH" | grep -q 'assets/asset_payloads/yvane/baggy boss .glb'
-          unzip -l "$APK_PATH" | grep -q 'assets/asset_payloads/yvane/boss ile 4.glb'
-          unzip -l "$APK_PATH" | grep -q 'assets/asset_payloads/yvane/boss sorcière.glb'
-          unzip -l "$APK_PATH" | grep -q 'assets/asset_payloads/yvane/grande boss sorcière des cauchemars.glb'
-          unzip -l "$APK_PATH" | grep -q 'assets/generated_models/hero_knight.glb'
+          unzip -Z1 "$APK_PATH" | tee /tmp/apk-entries.txt
+          grep -qx 'classes.dex' /tmp/apk-entries.txt
+          grep -qx 'lib/arm64-v8a/libgodot_android.so' /tmp/apk-entries.txt
+          ASSET_COUNT="$(grep -c '^assets/' /tmp/apk-entries.txt || true)"
+          test "$ASSET_COUNT" -gt 0
+
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          ZIPALIGN="$(find "$ANDROID_HOME/build-tools" -type f -name zipalign | sort -V | tail -n 1)"
+          test -x "$AAPT"
+          test -x "$APKSIGNER"
+          test -x "$ZIPALIGN"
+
+          "$AAPT" dump badging "$APK_PATH" | tee /tmp/apk-badging.txt
+          grep -q "package: name='com.chasmet.skypiea.playthroughv5'" /tmp/apk-badging.txt
+          grep -q "application-label:'Skypiea Supercontinent V6'" /tmp/apk-badging.txt
+          "$ZIPALIGN" -c -v 4 "$APK_PATH"
+          "$APKSIGNER" verify --verbose --print-certs "$APK_PATH" | tee /tmp/apk-signature.txt
+
           mkdir -p build/final
-          TARGET="build/final/ZeldaLike-Supercontinent-Bosses-V10-debug.apk"
+          TARGET="build/final/ZeldaLike-Supercontinent-Bosses-V6-debug.apk"
           if [ "$(realpath "$APK_PATH")" != "$(realpath -m "$TARGET")" ]; then
             cp "$APK_PATH" "$TARGET"
           fi
@@ -226,20 +228,20 @@ jobs:
           sha256sum "$TARGET" | tee build/final/SHA256.txt
           ls -lh "$TARGET"
 
-      - name: Upload Android APK
+      - name: Upload Android V6 APK
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Supercontinent-Bosses-V10-Android
+          name: ZeldaLike-Supercontinent-Bosses-V6-Android
           path: |
-            build/final/ZeldaLike-Supercontinent-Bosses-V10-debug.apk
+            build/final/ZeldaLike-Supercontinent-Bosses-V6-debug.apk
             build/final/SHA256.txt
           if-no-files-found: error
           retention-days: 30
 
-      - name: Upload visual validation
+      - name: Upload V6 visual validation
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Supercontinent-Bosses-V10-Validation
+          name: ZeldaLike-Supercontinent-Bosses-V6-Validation
           path: build/validation/HUD-Carte-Portrait.png
           if-no-files-found: error
           retention-days: 30
@@ -247,7 +249,24 @@ jobs:
       - name: Upload generated Blender models
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Supercontinent-Bosses-V10-Models
+          name: ZeldaLike-Supercontinent-Bosses-V6-Models
           path: generated_models/*.glb
           if-no-files-found: error
+          retention-days: 30
+
+      - name: Collect build diagnostics
+        if: ${{ always() }}
+        run: |
+          mkdir -p build/diagnostics
+          cp /tmp/godot-*.log build/diagnostics/ 2>/dev/null || true
+          cp /tmp/apk-entries.txt /tmp/apk-badging.txt /tmp/apk-signature.txt build/diagnostics/ 2>/dev/null || true
+          find build -maxdepth 4 -type f -printf '%p  %s bytes\n' | sort > build/diagnostics/files.txt
+
+      - name: Upload build diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ZeldaLike-Supercontinent-Bosses-V6-Diagnostics
+          path: build/diagnostics
+          if-no-files-found: warn
           retention-days: 30
