@@ -1,0 +1,94 @@
+name: Debug V6.1 Parser
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["v6.1-physics-world"]
+
+jobs:
+  parser-diagnostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository and large assets
+        uses: actions/checkout@v5
+        with:
+          lfs: true
+
+      - name: Reconstruct Yvane model
+        run: python3 tools/decode_yvane_model.py
+
+      - name: Install Blender and Xvfb
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y blender python3-numpy xvfb
+
+      - name: Generate game models
+        run: |
+          rm -rf generated_models
+          blender --background --python tools/blender/generate_game_assets_v2.py -- --output generated_models
+
+      - name: Convert boss GLBs for Godot
+        run: |
+          convert_boss() {
+            INPUT="$1"
+            TEMP="${INPUT%.glb}.godot-compatible.glb"
+            npx --yes @gltf-transform/cli@4.4.1 copy "$INPUT" "$TEMP"
+            mv "$TEMP" "$INPUT"
+          }
+          convert_boss "asset_payloads/yvane/baggy boss .glb"
+          convert_boss "asset_payloads/yvane/boss ile 4.glb"
+          convert_boss "asset_payloads/yvane/boss sorcière.glb"
+          convert_boss "asset_payloads/yvane/grande boss sorcière des cauchemars.glb"
+
+      - name: Download Godot
+        run: |
+          curl -L --fail --retry 8 --retry-all-errors --retry-delay 5 \
+            https://github.com/godotengine/godot-builds/releases/download/4.7.1-stable/Godot_v4.7.1-stable_linux.x86_64.zip \
+            -o /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          chmod +x /tmp/godot/Godot_v4.7.1-stable_linux.x86_64
+
+      - name: Capture exact parser errors
+        continue-on-error: true
+        run: |
+          GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
+          mkdir -p build/debug-v61
+          "$GODOT" --headless --path . --editor --quit > build/debug-v61/editor.log 2>&1 || true
+          cat > tools/check_v61_scripts.gd <<'EOF'
+          extends SceneTree
+
+          func _initialize() -> void:
+              var paths: Array[String] = [
+                  "res://scripts/main_supercontinent_world.gd",
+                  "res://scripts/main_supercontinent_decor.gd",
+                  "res://scripts/main_supercontinent_gameplay.gd",
+                  "res://scripts/main_supercontinent_v10.gd",
+                  "res://scripts/main_supercontinent_final.gd",
+                  "res://scripts/player_yvane_v61.gd",
+                  "res://scripts/ci_v61_world_check.gd"
+              ]
+              for path in paths:
+                  print("=== LOAD ", path, " ===")
+                  var resource: Resource = load(path)
+                  print("RESULT: ", resource)
+              quit()
+          EOF
+          "$GODOT" --headless --path . --script tools/check_v61_scripts.gd > build/debug-v61/script-load.log 2>&1 || true
+          timeout 80s "$GODOT" --headless --path . --quit-after 40 > build/debug-v61/runtime.log 2>&1 || true
+          grep -nE "SCRIPT ERROR|Parse Error|Could not resolve|Cannot infer|Warning treated|Invalid|ERROR:" build/debug-v61/*.log > build/debug-v61/errors-only.log || true
+          cat build/debug-v61/editor.log
+          cat build/debug-v61/script-load.log
+          cat build/debug-v61/errors-only.log
+
+      - name: Upload parser diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ZeldaLike-V6.1-Parser-Diagnostics
+          path: build/debug-v61
+          if-no-files-found: error
+          retention-days: 7
