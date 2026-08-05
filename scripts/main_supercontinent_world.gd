@@ -1,18 +1,19 @@
 extends "res://scripts/main_chk_player.gd"
 
-# V10 : les dix régions forment un seul supercontinent. Chaque région couvre
-# environ 150 x 130 m, soit un peu plus de dix fois la surface de l'ancien format.
+# Les dix régions forment un seul supercontinent d'environ 2,2 x 1,7 km.
+# Une région couvre environ 500 x 430 m, soit plus de dix fois la surface
+# de l'ancienne région de 150 x 130 m.
 const SUPER_ZONE_CENTERS = [
-	Vector3(-225.0, 0.0, -150.0), # 1 Forge volcanique
-	Vector3(-75.0, 0.0, -150.0),  # 2 Forêt des cascades
-	Vector3(75.0, 0.0, -150.0),   # 3 Pics de glace
-	Vector3(225.0, 0.0, -150.0),  # 4 Désert du colosse
-	Vector3(225.0, 0.0, 0.0),     # 5 Marais des ombres
-	Vector3(-75.0, 0.0, 150.0),   # 6 Ruines du soleil
-	Vector3(-225.0, 0.0, 0.0),    # 7 Côte des pirates
-	Vector3(-225.0, 0.0, 150.0),  # 8 Village des sources
-	Vector3(-75.0, 0.0, 0.0),     # 9 Royaume central
-	Vector3(150.0, 0.0, 150.0)    # 10 Hauts plateaux célestes
+	Vector3(-780.0, 0.0, -540.0), # 1 Forge volcanique
+	Vector3(-260.0, 0.0, -540.0), # 2 Forêt des cascades
+	Vector3(260.0, 0.0, -540.0),  # 3 Pics de glace
+	Vector3(780.0, 0.0, -540.0),  # 4 Désert du colosse
+	Vector3(780.0, 0.0, 0.0),     # 5 Marais des ombres
+	Vector3(-260.0, 0.0, 540.0),  # 6 Ruines du soleil
+	Vector3(-780.0, 0.0, 0.0),    # 7 Côte des pirates
+	Vector3(-780.0, 0.0, 540.0),  # 8 Village des sources
+	Vector3(-260.0, 0.0, 0.0),    # 9 Royaume central
+	Vector3(520.0, 0.0, 540.0)    # 10 Hauts plateaux célestes
 ]
 
 const SUPER_ZONE_NAMES = [
@@ -22,21 +23,23 @@ const SUPER_ZONE_NAMES = [
 	"Hauts Plateaux Célestes"
 ]
 
-const REGION_SIZE := Vector2(150.0, 130.0)
-const CONTINENT_HALF := Vector2(330.0, 245.0)
-const CONTINENT_SIZE := Vector2(660.0, 490.0)
-const TERRAIN_STEPS_X := 84
-const TERRAIN_STEPS_Z := 64
-const WATER_SURFACE_Y := -0.92
-const WATER_BOTTOM_Y := -8.50
-const SUPER_OCEAN_SIZE := Vector2(900.0, 720.0)
-const SUPER_OCEAN_BOUNDS := Rect2(Vector2(-450.0, -360.0), Vector2(900.0, 720.0))
+const REGION_SIZE := Vector2(500.0, 430.0)
+const CONTINENT_HALF := Vector2(1120.0, 850.0)
+const CONTINENT_SIZE := Vector2(2240.0, 1700.0)
+const TERRAIN_STEPS_X := 180
+const TERRAIN_STEPS_Z := 136
+const WATER_SURFACE_Y := -1.20
+const WATER_BOTTOM_Y := -12.0
+const SUPER_OCEAN_SIZE := Vector2(2800.0, 2200.0)
+const SUPER_OCEAN_BOUNDS := Rect2(Vector2(-1400.0, -1100.0), Vector2(2800.0, 2200.0))
 
 const YVANE_SCRIPT = preload("res://scripts/player_yvane.gd")
 const GENERIC_ENEMY_SCRIPT = preload("res://scripts/enemy.gd")
 const IMPORTED_ENEMY_SCRIPT = preload("res://scripts/uploaded_enemy.gd")
 const YVANE_MODEL_PATH := "res://scenes/characters/yvane_player_2_model.tscn"
 
+# Les quatre personnages GLB ajoutés par Cheikh sont utilisés tels quels.
+# Aucun remplacement de modèle, aucune recoloration et aucune déformation.
 const BOSS_SPECS = {
 	0: {
 		"node": "BaggyBoss",
@@ -108,7 +111,7 @@ func _build_environment() -> void:
 	environment.ambient_light_energy = 0.92
 	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	environment.fog_enabled = true
-	environment.fog_density = 0.00065
+	environment.fog_density = 0.00032
 	environment.fog_light_color = Color(0.64, 0.76, 0.88)
 	world_environment.environment = environment
 	add_child(world_environment)
@@ -118,7 +121,7 @@ func _build_environment() -> void:
 	sun.rotation_degrees = Vector3(-52.0, -30.0, 0.0)
 	sun.light_energy = 1.52
 	sun.shadow_enabled = true
-	sun.directional_shadow_max_distance = 180.0
+	sun.directional_shadow_max_distance = 260.0
 	add_child(sun)
 
 	var ocean := MeshInstance3D.new()
@@ -136,6 +139,7 @@ func _build_environment() -> void:
 	add_child(ocean)
 
 	_build_ocean_physics()
+
 
 func _build_ocean_physics() -> void:
 	var water_depth := WATER_SURFACE_Y - WATER_BOTTOM_Y
@@ -170,10 +174,13 @@ func _build_ocean_physics() -> void:
 
 	var wall_height := water_depth + 7.0
 	var wall_center_y := WATER_BOTTOM_Y + wall_height * 0.5
-	_add_ocean_boundary("OceanBoundaryWest", Vector3(1.0, wall_height, SUPER_OCEAN_SIZE.y), Vector3(-451.0, wall_center_y, 0.0))
-	_add_ocean_boundary("OceanBoundaryEast", Vector3(1.0, wall_height, SUPER_OCEAN_SIZE.y), Vector3(451.0, wall_center_y, 0.0))
-	_add_ocean_boundary("OceanBoundaryNorth", Vector3(SUPER_OCEAN_SIZE.x, wall_height, 1.0), Vector3(0.0, wall_center_y, -361.0))
-	_add_ocean_boundary("OceanBoundarySouth", Vector3(SUPER_OCEAN_SIZE.x, wall_height, 1.0), Vector3(0.0, wall_center_y, 361.0))
+	var half_ocean_x := SUPER_OCEAN_SIZE.x * 0.5
+	var half_ocean_z := SUPER_OCEAN_SIZE.y * 0.5
+	_add_ocean_boundary("OceanBoundaryWest", Vector3(1.0, wall_height, SUPER_OCEAN_SIZE.y), Vector3(-half_ocean_x - 1.0, wall_center_y, 0.0))
+	_add_ocean_boundary("OceanBoundaryEast", Vector3(1.0, wall_height, SUPER_OCEAN_SIZE.y), Vector3(half_ocean_x + 1.0, wall_center_y, 0.0))
+	_add_ocean_boundary("OceanBoundaryNorth", Vector3(SUPER_OCEAN_SIZE.x, wall_height, 1.0), Vector3(0.0, wall_center_y, -half_ocean_z - 1.0))
+	_add_ocean_boundary("OceanBoundarySouth", Vector3(SUPER_OCEAN_SIZE.x, wall_height, 1.0), Vector3(0.0, wall_center_y, half_ocean_z + 1.0))
+
 
 func _build_zone(zone_index) -> void:
 	if not _supercontinent_built:
@@ -183,6 +190,9 @@ func _build_zone(zone_index) -> void:
 	_add_super_zone_title(zone_index)
 	_decorate_super_region(zone_index)
 
+
+# Implémentation de secours. La scène finale remplace ce collider par un
+# HeightMapShape3D plus léger et plus fiable pour Android.
 func _build_supercontinent_terrain() -> void:
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -226,84 +236,98 @@ func _build_supercontinent_terrain() -> void:
 	terrain.add_child(collision)
 	add_child(terrain)
 
+
 func _add_colored_triangle(surface: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:
 	for point: Vector3 in [a, b, c]:
 		surface.set_color(_super_color(point.x, point.z, point.y))
 		surface.add_vertex(point)
 
+
 func _super_height(world_x: float, world_z: float) -> float:
 	var nx := world_x / CONTINENT_HALF.x
 	var nz := world_z / CONTINENT_HALF.y
 	var edge := pow(pow(absf(nx), 4.0) + pow(absf(nz), 4.0), 0.25)
-	var low_wave := sin(world_x * 0.027) * 0.34 + cos(world_z * 0.031) * 0.28
-	low_wave += sin((world_x + world_z) * 0.014) * 0.22
-	var height := 1.75 + low_wave
 
-	# Grandes plaines centrales et méridionales.
-	var plains := _gaussian(world_x, world_z, -120.0, 80.0, 175.0)
-	height = lerpf(height, 1.55 + low_wave * 0.22, plains * 0.78)
+	# Relief doux à grande échelle : longues plaines réellement parcourables.
+	var low_wave := sin(world_x * 0.0082) * 0.52 + cos(world_z * 0.0091) * 0.44
+	low_wave += sin((world_x + world_z) * 0.0042) * 0.30
+	var height := 2.15 + low_wave
+
+	# Grandes plaines centrales, occidentales et méridionales.
+	var central_plain := _gaussian(world_x, world_z, -260.0, 80.0, 570.0)
+	var south_plain := _gaussian(world_x, world_z, -420.0, 500.0, 430.0)
+	var east_plain := _gaussian(world_x, world_z, 520.0, 60.0, 360.0)
+	var plain_strength := clampf(central_plain * 0.68 + south_plain * 0.50 + east_plain * 0.34, 0.0, 0.90)
+	height = lerpf(height, 1.85 + low_wave * 0.18, plain_strength)
 
 	# Massifs montagneux, falaises et hauts plateaux.
-	height += _gaussian(world_x, world_z, -225.0, -150.0, 76.0) * 20.0
-	height -= _gaussian(world_x, world_z, -225.0, -150.0, 20.0) * 7.0
-	height += _gaussian(world_x, world_z, 55.0, -158.0, 70.0) * 13.0
-	height += _gaussian(world_x, world_z, 112.0, -138.0, 48.0) * 10.0
-	height += _gaussian(world_x, world_z, 150.0, 150.0, 82.0) * 21.0
-	height += _gaussian(world_x, world_z, 250.0, -130.0, 74.0) * 4.0
-	height -= _gaussian(world_x, world_z, 225.0, 0.0, 95.0) * 1.2
+	height += _gaussian(world_x, world_z, -780.0, -540.0, 245.0) * 38.0
+	height -= _gaussian(world_x, world_z, -780.0, -540.0, 72.0) * 13.0
+	height += _gaussian(world_x, world_z, 210.0, -560.0, 250.0) * 29.0
+	height += _gaussian(world_x, world_z, 390.0, -470.0, 170.0) * 18.0
+	height += _gaussian(world_x, world_z, 520.0, 540.0, 270.0) * 41.0
+	height += _gaussian(world_x, world_z, 860.0, -510.0, 250.0) * 9.0
+	height -= _gaussian(world_x, world_z, 780.0, 0.0, 320.0) * 2.0
 
-	# Deux fleuves uniquement à l'intérieur du continent.
+	# Deux fleuves seulement à l'intérieur du continent.
 	var river_one_x := _river_one_x(world_z)
 	var river_one_distance := absf(world_x - river_one_x)
-	if river_one_distance < 10.5:
-		var river_one_strength := 1.0 - smoothstep(0.0, 10.5, river_one_distance)
-		height = minf(height, lerpf(height, -2.05, river_one_strength))
+	if river_one_distance < 22.0:
+		var river_one_strength := 1.0 - smoothstep(0.0, 22.0, river_one_distance)
+		height = minf(height, lerpf(height, -2.55, river_one_strength))
 
 	var river_two_z := _river_two_z(world_x)
 	var river_two_distance := absf(world_z - river_two_z)
-	if river_two_distance < 11.5:
-		var river_two_strength := 1.0 - smoothstep(0.0, 11.5, river_two_distance)
-		height = minf(height, lerpf(height, -2.25, river_two_strength))
+	if river_two_distance < 24.0:
+		var river_two_strength := 1.0 - smoothstep(0.0, 24.0, river_two_distance)
+		height = minf(height, lerpf(height, -2.75, river_two_strength))
 
-	# Bord de mer : plages sur les côtes douces, falaises au nord et à l'est.
-	if edge > 0.77:
-		var coast := smoothstep(0.77, 1.0, edge)
-		var cliff_sector := world_z < -105.0 or world_x > 245.0
-		var coast_land := height + (6.0 * (1.0 - coast) if cliff_sector else 0.0)
-		height = lerpf(coast_land, -2.6, coast)
+	# Océan uniquement autour du supercontinent. Les côtes sud et ouest sont
+	# majoritairement des plages ; les côtes nord et est comportent des falaises.
+	if edge > 0.82:
+		var coast := smoothstep(0.82, 1.0, edge)
+		var cliff_sector := world_z < -390.0 or world_x > 820.0
+		var cliff_lift := 12.0 * (1.0 - coast) if cliff_sector else 0.0
+		height = lerpf(height + cliff_lift, -3.40, coast)
 	return height
+
 
 func _gaussian(x: float, z: float, cx: float, cz: float, radius: float) -> float:
 	var dx := x - cx
 	var dz := z - cz
 	return exp(-(dx * dx + dz * dz) / maxf(1.0, radius * radius))
 
+
 func _river_one_x(world_z: float) -> float:
-	return -115.0 + sin((world_z + 210.0) * 0.018) * 34.0
+	return -390.0 + sin((world_z + 720.0) * 0.0055) * 110.0
+
 
 func _river_two_z(world_x: float) -> float:
-	return 72.0 + sin((world_x + 75.0) * 0.0105) * 28.0
+	return 250.0 + sin((world_x + 260.0) * 0.0034) * 90.0
+
 
 func _super_color(world_x: float, world_z: float, height: float) -> Color:
-	if height < WATER_SURFACE_Y + 0.30:
+	if height < WATER_SURFACE_Y + 0.35:
 		return Color(0.70, 0.61, 0.40)
-	if height < 0.65:
+	if height < 0.85:
 		return Color(0.78, 0.68, 0.43)
 	var zone_index := _nearest_super_zone(Vector3(world_x, height, world_z))
 	var base: Color = SUPER_ZONE_COLORS[zone_index]
-	var detail := (sin(world_x * 0.17) + cos(world_z * 0.14)) * 0.045
-	if height > 15.0:
+	var detail := (sin(world_x * 0.055) + cos(world_z * 0.048)) * 0.045
+	if height > 25.0:
 		return Color(0.82, 0.86, 0.87) if zone_index in [2, 9] else Color(0.31, 0.29, 0.27)
 	return base.lightened(detail) if detail >= 0.0 else base.darkened(-detail)
+
 
 func _build_two_rivers() -> void:
 	_add_river_visual("FleuveNordSud", true)
 	_add_river_visual("FleuveEstOuest", false)
 
+
 func _add_river_visual(node_name: String, north_south: bool) -> void:
-	var segments := 44
-	var start_value := -225.0 if north_south else -310.0
-	var end_value := 225.0 if north_south else 310.0
+	var segments := 72
+	var start_value := -CONTINENT_HALF.y + 95.0 if north_south else -CONTINENT_HALF.x + 110.0
+	var end_value := CONTINENT_HALF.y - 95.0 if north_south else CONTINENT_HALF.x - 110.0
 	var previous := Vector3.ZERO
 	for index in range(segments + 1):
 		var t := float(index) / float(segments)
@@ -312,9 +336,11 @@ func _add_river_visual(node_name: String, north_south: bool) -> void:
 		if index > 0:
 			var delta := point - previous
 			var midpoint := (point + previous) * 0.5
-			var water: Node3D = _visual_box(node_name, Vector3(16.5, 0.05, delta.length() + 0.7), midpoint, Color(0.025, 0.38, 0.61, 0.86))
+			var river_width := 34.0 if north_south else 38.0
+			var water: Node3D = _visual_box(node_name, Vector3(river_width, 0.05, delta.length() + 1.4), midpoint, Color(0.025, 0.38, 0.61, 0.86))
 			water.rotation.y = atan2(delta.x, delta.z)
 		previous = point
+
 
 func _nearest_super_zone(world_position: Vector3) -> int:
 	var nearest_zone := START_ZONE
@@ -329,8 +355,10 @@ func _nearest_super_zone(world_position: Vector3) -> int:
 			nearest_zone = zone_index
 	return nearest_zone
 
+
 func _decorate_super_region(_zone_index: int) -> void:
 	pass
+
 
 func _add_super_zone_title(_zone_index: int) -> void:
 	pass
