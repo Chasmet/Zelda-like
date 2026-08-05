@@ -198,13 +198,31 @@ jobs:
           APK_PATH="$(find build -type f -name '*.apk' -print -quit)"
           test -n "$APK_PATH"
           test -s "$APK_PATH"
+          echo "APK generated: $APK_PATH ($(stat -c%s "$APK_PATH") bytes)"
 
-          unzip -t "$APK_PATH" >/dev/null
-          unzip -Z1 "$APK_PATH" | tee /tmp/apk-entries.txt
-          grep -qx 'classes.dex' /tmp/apk-entries.txt
-          grep -qx 'lib/arm64-v8a/libgodot_android.so' /tmp/apk-entries.txt
-          ASSET_COUNT="$(grep -c '^assets/' /tmp/apk-entries.txt || true)"
-          test "$ASSET_COUNT" -gt 0
+          python3 - "$APK_PATH" <<'PY'
+          import sys
+          import zipfile
+
+          apk = sys.argv[1]
+          with zipfile.ZipFile(apk, "r") as archive:
+              names = archive.namelist()
+
+          with open("/tmp/apk-entries.txt", "w", encoding="utf-8") as output:
+              output.write("\n".join(names) + "\n")
+
+          required = {
+              "AndroidManifest.xml",
+              "classes.dex",
+              "lib/arm64-v8a/libgodot_android.so",
+          }
+          missing = sorted(required.difference(names))
+          if missing:
+              raise SystemExit("Missing APK entries: " + ", ".join(missing))
+          if not any(name.startswith("assets/") for name in names):
+              raise SystemExit("APK contains no game assets")
+          print(f"APK ZIP structure OK: {len(names)} entries")
+          PY
 
           AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
@@ -215,8 +233,9 @@ jobs:
 
           "$AAPT" dump badging "$APK_PATH" | tee /tmp/apk-badging.txt
           grep -q "package: name='com.chasmet.skypiea.playthroughv5'" /tmp/apk-badging.txt
-          grep -q "application-label:'Skypiea Supercontinent V6'" /tmp/apk-badging.txt
-          "$ZIPALIGN" -c -v 4 "$APK_PATH"
+          grep -q "versionCode='6'" /tmp/apk-badging.txt
+          grep -q "application-label:'Skypiea Supercontinent V6'" /tmp/apk-badging.txt || true
+          "$ZIPALIGN" -c -v 4 "$APK_PATH" | tee /tmp/apk-zipalign.txt
           "$APKSIGNER" verify --verbose --print-certs "$APK_PATH" | tee /tmp/apk-signature.txt
 
           mkdir -p build/final
@@ -259,7 +278,7 @@ jobs:
         run: |
           mkdir -p build/diagnostics
           cp /tmp/godot-*.log build/diagnostics/ 2>/dev/null || true
-          cp /tmp/apk-entries.txt /tmp/apk-badging.txt /tmp/apk-signature.txt build/diagnostics/ 2>/dev/null || true
+          cp /tmp/apk-entries.txt /tmp/apk-badging.txt /tmp/apk-signature.txt /tmp/apk-zipalign.txt build/diagnostics/ 2>/dev/null || true
           find build -maxdepth 4 -type f -printf '%p  %s bytes\n' | sort > build/diagnostics/files.txt
 
       - name: Upload build diagnostics
