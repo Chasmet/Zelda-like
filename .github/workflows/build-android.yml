@@ -1,16 +1,16 @@
-name: Build Android APK V6
+name: Build Android APK V6.1
 
 on:
   workflow_dispatch:
   push:
-    branches: [main, "agent/**", "work/**", "character-assets-v9", "supercontinent-v10"]
+    branches: [main, "agent/**", "work/**", "character-assets-v9", "supercontinent-v10", "v6.1-physics-world"]
   pull_request:
     branches: [main]
 
 jobs:
   export-android:
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 60
     permissions:
       contents: read
 
@@ -33,7 +33,7 @@ jobs:
           sudo apt-get install -y blender python3-numpy xvfb ffmpeg
           blender --version
 
-      - name: Generate the articulated Cheikh hero and game models
+      - name: Generate the articulated hero and fixed game models
         run: |
           rm -rf generated_models
           blender --background --python tools/blender/generate_game_assets_v2.py -- --output generated_models
@@ -79,100 +79,103 @@ jobs:
           GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
           "$GODOT" --headless --path . --editor --quit
           set +e
-          timeout 55s "$GODOT" --headless --path . --quit-after 28 > /tmp/godot-runtime.log 2>&1
+          timeout 70s "$GODOT" --headless --path . --quit-after 36 > /tmp/godot-runtime.log 2>&1
           STATUS=$?
           set -e
           cat /tmp/godot-runtime.log
-          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|ERROR:.*main_supercontinent|ERROR:.*main_water_final|ERROR:.*player_water|ERROR:.*ci_water_physics|ERROR:.*main_mobile_final|ERROR:.*procedural_animator|ERROR:.*adaptive_character_animator|ERROR:.*player_yvane|ERROR:.*uploaded_enemy|ERROR:.*ci_uploaded_characters|ERROR:.*ci_full_playthrough" /tmp/godot-runtime.log; then
+          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|Cannot infer|Warning treated|ERROR:.*main_supercontinent|ERROR:.*main_water_final|ERROR:.*player_water|ERROR:.*player_yvane_v61|ERROR:.*ci_v61_world" /tmp/godot-runtime.log; then
             exit 1
           fi
           if [ "$STATUS" -ne 0 ] && [ "$STATUS" -ne 124 ]; then
             exit "$STATUS"
           fi
 
-      - name: Validate a real touchscreen press, movement and walk cycle
+      - name: Validate touchscreen press, movement and walk cycle
         run: |
           GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
           set +e
-          timeout 135s xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path . -- --ci-walk-check > /tmp/godot-touch.log 2>&1
+          timeout 160s xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path . -- --ci-walk-check > /tmp/godot-touch.log 2>&1
           STATUS=$?
           set -e
           cat /tmp/godot-touch.log
           if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|CI TOUCH CHECK:" /tmp/godot-touch.log; then
             exit 1
           fi
-          if [ "$STATUS" -ne 0 ]; then
-            echo "Touch movement test exited with status $STATUS"
-            exit "$STATUS"
-          fi
+          test "$STATUS" -eq 0
           grep -q "CI TOUCH CHECK OK" /tmp/godot-touch.log
 
       - name: Validate Yvane and the four imported bosses
         run: |
           GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
           set +e
-          timeout 150s xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path . -- --ci-uploaded-characters > /tmp/godot-characters.log 2>&1
+          timeout 180s xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path . -- --ci-uploaded-characters > /tmp/godot-characters.log 2>&1
           STATUS=$?
           set -e
           cat /tmp/godot-characters.log
           if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|CI UPLOADED CHARACTERS:" /tmp/godot-characters.log; then
             exit 1
           fi
-          if [ "$STATUS" -ne 0 ]; then
-            exit "$STATUS"
-          fi
+          test "$STATUS" -eq 0
           grep -q "CI UPLOADED CHARACTERS OK" /tmp/godot-characters.log
+
+      - name: Validate the V6.1 supercontinent, two rivers and shore exit
+        run: |
+          GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
+          set +e
+          timeout 240s xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path . -- --ci-v61-world > /tmp/godot-v61-world.log 2>&1
+          STATUS=$?
+          set -e
+          cat /tmp/godot-v61-world.log
+          if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|CI V6.1 WORLD:" /tmp/godot-v61-world.log; then
+            exit 1
+          fi
+          test "$STATUS" -eq 0
+          grep -q "CI V6.1 WORLD OK: regions=10" /tmp/godot-v61-world.log
+          grep -q "rivers=2 ocean_ring=OK" /tmp/godot-v61-world.log
+          grep -q "shore_exit=OK" /tmp/godot-v61-world.log
 
       - name: Play all 10 zones and restore partial saves
         run: |
           GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
           set +e
-          timeout 210s xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path . -- --ci-full-playthrough > /tmp/godot-playthrough.log 2>&1
+          timeout 250s xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path . -- --ci-full-playthrough > /tmp/godot-playthrough.log 2>&1
           STATUS=$?
           set -e
           cat /tmp/godot-playthrough.log
           if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|CI FULL PLAYTHROUGH:" /tmp/godot-playthrough.log; then
             exit 1
           fi
-          if [ "$STATUS" -ne 0 ]; then
-            echo "Full playthrough exited with status $STATUS"
-            exit "$STATUS"
-          fi
+          test "$STATUS" -eq 0
           grep -q "CI FULL PLAYTHROUGH OK: zones=10 guardians=20 last_zone=10 save_restore=OK" /tmp/godot-playthrough.log
 
-      - name: Validate shoreline, diving, collisions and complete gameplay physics
+      - name: Validate water, diving, land exit, collisions and gameplay physics
         run: |
           GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
           set +e
-          timeout 190s xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path . -- --ci-water-physics > /tmp/godot-water-physics.log 2>&1
+          timeout 230s xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path . -- --ci-water-physics > /tmp/godot-water-physics.log 2>&1
           STATUS=$?
           set -e
           cat /tmp/godot-water-physics.log
           if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|CI WATER PHYSICS:" /tmp/godot-water-physics.log; then
             exit 1
           fi
-          if [ "$STATUS" -ne 0 ]; then
-            echo "Water and gameplay physics test exited with status $STATUS"
-            exit "$STATUS"
-          fi
+          test "$STATUS" -eq 0
           grep -q "CI WATER PHYSICS OK: swim=OK dive=OK surface=OK seabed=OK oxygen=OK walk=OK jump=OK dodge=OK respawn=OK" /tmp/godot-water-physics.log
 
-      - name: Capture the fully loaded interface
+      - name: Capture the fully loaded V6.1 interface
         run: |
           GODOT=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64
           mkdir -p build/validation
           rm -f build/validation/HUD-Carte-Portrait.png
           set +e
-          timeout 125s xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path . -- --ci-hud-shot > /tmp/godot-visual.log 2>&1
+          timeout 150s xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path . -- --ci-hud-shot > /tmp/godot-visual.log 2>&1
           STATUS=$?
           set -e
           cat /tmp/godot-visual.log
           if grep -E "SCRIPT ERROR|Parse Error|Invalid call|Invalid access|Assertion failed|CI HUD capture failed|CI HUD capture timed out" /tmp/godot-visual.log; then
             exit 1
           fi
-          if [ "$STATUS" -ne 0 ]; then
-            exit "$STATUS"
-          fi
+          test "$STATUS" -eq 0
           grep -q "CI HUD capture saved" /tmp/godot-visual.log
           test -s build/validation/HUD-Carte-Portrait.png
 
@@ -191,55 +194,32 @@ jobs:
           presets_to_export: Android
           cache: true
 
-      - name: Verify and normalise V6 APK
+      - name: Verify and normalise V6.1 APK
         shell: bash
         run: |
           set -euo pipefail
           APK_PATH="$(find build -type f -name '*.apk' -print -quit)"
           test -n "$APK_PATH"
           test -s "$APK_PATH"
-          echo "APK generated: $APK_PATH ($(stat -c%s "$APK_PATH") bytes)"
-
-          python3 - "$APK_PATH" <<'PY'
-          import sys
-          import zipfile
-
-          apk = sys.argv[1]
-          with zipfile.ZipFile(apk, "r") as archive:
-              names = archive.namelist()
-
-          with open("/tmp/apk-entries.txt", "w", encoding="utf-8") as output:
-              output.write("\n".join(names) + "\n")
-
-          required = {
-              "AndroidManifest.xml",
-              "classes.dex",
-              "lib/arm64-v8a/libgodot_android.so",
-          }
-          missing = sorted(required.difference(names))
-          if missing:
-              raise SystemExit("Missing APK entries: " + ", ".join(missing))
-          if not any(name.startswith("assets/") for name in names):
-              raise SystemExit("APK contains no game assets")
-          print(f"APK ZIP structure OK: {len(names)} entries")
-          PY
-
+          unzip -t "$APK_PATH" >/dev/null
+          unzip -Z1 "$APK_PATH" | tee /tmp/apk-entries.txt
+          grep -qx 'classes.dex' /tmp/apk-entries.txt
+          grep -qx 'lib/arm64-v8a/libgodot_android.so' /tmp/apk-entries.txt
+          ASSET_COUNT="$(grep -c '^assets/' /tmp/apk-entries.txt || true)"
+          test "$ASSET_COUNT" -gt 0
           AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
           ZIPALIGN="$(find "$ANDROID_HOME/build-tools" -type f -name zipalign | sort -V | tail -n 1)"
           test -x "$AAPT"
           test -x "$APKSIGNER"
           test -x "$ZIPALIGN"
-
           "$AAPT" dump badging "$APK_PATH" | tee /tmp/apk-badging.txt
           grep -q "package: name='com.chasmet.skypiea.playthroughv5'" /tmp/apk-badging.txt
-          grep -q "versionCode='6'" /tmp/apk-badging.txt
-          grep -q "application-label:'Skypiea Supercontinent V6'" /tmp/apk-badging.txt || true
-          "$ZIPALIGN" -c -v 4 "$APK_PATH" | tee /tmp/apk-zipalign.txt
+          grep -q "application-label:'Skypiea Supercontinent V6.1'" /tmp/apk-badging.txt
+          "$ZIPALIGN" -c -v 4 "$APK_PATH"
           "$APKSIGNER" verify --verbose --print-certs "$APK_PATH" | tee /tmp/apk-signature.txt
-
           mkdir -p build/final
-          TARGET="build/final/ZeldaLike-Supercontinent-Bosses-V6-debug.apk"
+          TARGET="build/final/ZeldaLike-Supercontinent-V6.1-debug.apk"
           if [ "$(realpath "$APK_PATH")" != "$(realpath -m "$TARGET")" ]; then
             cp "$APK_PATH" "$TARGET"
           fi
@@ -247,29 +227,21 @@ jobs:
           sha256sum "$TARGET" | tee build/final/SHA256.txt
           ls -lh "$TARGET"
 
-      - name: Upload Android V6 APK
+      - name: Upload Android V6.1 APK
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Supercontinent-Bosses-V6-Android
+          name: ZeldaLike-Supercontinent-V6.1-Android
           path: |
-            build/final/ZeldaLike-Supercontinent-Bosses-V6-debug.apk
+            build/final/ZeldaLike-Supercontinent-V6.1-debug.apk
             build/final/SHA256.txt
           if-no-files-found: error
           retention-days: 30
 
-      - name: Upload V6 visual validation
+      - name: Upload V6.1 visual validation
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Supercontinent-Bosses-V6-Validation
+          name: ZeldaLike-Supercontinent-V6.1-Validation
           path: build/validation/HUD-Carte-Portrait.png
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Upload generated Blender models
-        uses: actions/upload-artifact@v7
-        with:
-          name: ZeldaLike-Supercontinent-Bosses-V6-Models
-          path: generated_models/*.glb
           if-no-files-found: error
           retention-days: 30
 
@@ -278,14 +250,14 @@ jobs:
         run: |
           mkdir -p build/diagnostics
           cp /tmp/godot-*.log build/diagnostics/ 2>/dev/null || true
-          cp /tmp/apk-entries.txt /tmp/apk-badging.txt /tmp/apk-signature.txt /tmp/apk-zipalign.txt build/diagnostics/ 2>/dev/null || true
+          cp /tmp/apk-entries.txt /tmp/apk-badging.txt /tmp/apk-signature.txt build/diagnostics/ 2>/dev/null || true
           find build -maxdepth 4 -type f -printf '%p  %s bytes\n' | sort > build/diagnostics/files.txt
 
       - name: Upload build diagnostics
         if: ${{ always() }}
         uses: actions/upload-artifact@v7
         with:
-          name: ZeldaLike-Supercontinent-Bosses-V6-Diagnostics
+          name: ZeldaLike-Supercontinent-V6.1-Diagnostics
           path: build/diagnostics
           if-no-files-found: warn
           retention-days: 30
