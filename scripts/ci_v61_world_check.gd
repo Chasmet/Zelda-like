@@ -70,11 +70,7 @@ func _run_v61_check() -> void:
 		_fail("l'ancienne dalle d'eau couvrant tout le continent existe encore", 111)
 		return
 
-	var handmade_count := 0
-	handmade_count += _count_nodes_named(game, "HandmadeRock")
-	handmade_count += _count_nodes_named(game, "HandmadeCrystal")
-	handmade_count += _count_nodes_named(game, "HandmadeColumn")
-	handmade_count += _count_nodes_named(game, "HandmadeTower")
+	var handmade_count := _count_static_decor(game)
 	if handmade_count < 45:
 		_fail("le décor manuel est trop pauvre : %d éléments physiques" % handmade_count, 112)
 		return
@@ -123,6 +119,17 @@ func _find_west_shore_boundary(game, water_surface: float) -> float:
 			return x
 		previous_height = height
 	return -900.0
+
+
+func _count_static_decor(root: Node) -> int:
+	var count := 0
+	if root is StaticBody3D:
+		var root_name := String(root.name)
+		if root_name not in ["SupercontinentTerrainV61", "OceanSeabed", "OceanBoundaryWest", "OceanBoundaryEast", "OceanBoundaryNorth", "OceanBoundarySouth"]:
+			count = 1
+	for child: Node in root.get_children():
+		count += _count_static_decor(child)
+	return count
 
 
 func _count_nodes_named(root: Node, target_name: String) -> int:
