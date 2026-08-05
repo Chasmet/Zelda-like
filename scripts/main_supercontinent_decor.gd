@@ -292,8 +292,8 @@ func _add_hand_authored_route(node_name: String, points: Array, width: float, co
 
 func _place_tree_list(center: Vector3, entries: Array) -> void:
 	for entry in entries:
-		var x := center.x + entry.x
-		var z := center.z + entry.z
+		var x: float = center.x + float(entry.x)
+		var z: float = center.z + float(entry.z)
 		_spawn_super_model(TREE_MODEL, Vector3(x, _super_height(x, z), z), Vector3.ONE * entry.y, Vector3(0.0, (entry.x + entry.z) * 0.013, 0.0))
 
 
