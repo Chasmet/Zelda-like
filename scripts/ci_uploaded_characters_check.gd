@@ -3,6 +3,7 @@ extends Node
 const SAVE_PATH := "user://skypiea_worldmap_v2.cfg"
 const MAX_WAIT_SECONDS := 150.0
 const MIN_YVANE_TRAVEL := 0.15
+const TEST_TOUCH_ID := 31
 const BOSS_ASSETS = {
 	"BaggyBoss": "res://asset_payloads/yvane/baggy boss .glb",
 	"BossIle4": "res://asset_payloads/yvane/boss ile 4.glb",
@@ -76,17 +77,35 @@ func _run_check() -> void:
 			_fail("animation absente pour %s" % boss_id, 51)
 			return
 
+	# Utiliser exactement le même chemin d'entrée que sur Android : un vrai appui
+	# tactile sur le joystick fixe. L'ancien appel direct à set_virtual_move()
+	# pouvait être remplacé par l'état nul conservé dans l'interface principale.
+	var joystick_base: Control = game.get("fixed_joystick_base")
+	if not is_instance_valid(joystick_base):
+		_fail("le joystick mobile de Yvane n'est pas disponible", 56)
+		return
+	var joystick_rect: Rect2 = joystick_base.get_global_rect()
+	var joystick_center: Vector2 = joystick_rect.position + joystick_rect.size * 0.5
+	var forward_touch: Vector2 = joystick_center + Vector2(0.0, -60.0)
 	var start_position: Vector3 = player.global_position
 	var pose_before: Vector4 = yvane_animator.call("get_animation_signature")
-	player.call("set_virtual_move", Vector2(0.0, -1.0))
+	_press_touch(forward_touch)
+	await get_tree().process_frame
+	var applied_move: Vector2 = game.get("virtual_move")
+	if applied_move.length() < 0.45 or applied_move.y > -0.35:
+		_release_touch(forward_touch)
+		_fail("le joystick ne transmet pas l'avance à Yvane : %s" % applied_move, 57)
+		return
 	await get_tree().create_timer(0.85).timeout
 	var moved_position: Vector3 = player.global_position
 	var pose_after: Vector4 = yvane_animator.call("get_animation_signature")
-	player.call("set_virtual_move", Vector2.ZERO)
+	_release_touch(forward_touch)
+	await get_tree().process_frame
 	var travelled: float = start_position.distance_to(moved_position)
 	var yvane_pose_delta: float = (pose_after - pose_before).length()
 	if travelled < MIN_YVANE_TRAVEL:
-		_fail("Yvane ne reçoit pas un déplacement réel : %.3f m" % travelled, 45)
+		var movement_debug: Dictionary = player.call("get_movement_debug")
+		_fail("Yvane ne reçoit pas un déplacement réel : %.3f m, debug=%s" % [travelled, movement_debug], 45)
 		return
 	if yvane_pose_delta < 0.01:
 		_fail("Yvane se déplace mais son animation reste figée", 46)
@@ -128,6 +147,22 @@ func _run_check() -> void:
 	)
 	_remove_test_save()
 	get_tree().quit()
+
+
+func _press_touch(position: Vector2) -> void:
+	var press := InputEventScreenTouch.new()
+	press.index = TEST_TOUCH_ID
+	press.position = position
+	press.pressed = true
+	Input.parse_input_event(press)
+
+
+func _release_touch(position: Vector2) -> void:
+	var release := InputEventScreenTouch.new()
+	release.index = TEST_TOUCH_ID
+	release.position = position
+	release.pressed = false
+	Input.parse_input_event(release)
 
 
 func _freeze_bosses(resolved_bosses: Dictionary) -> void:
