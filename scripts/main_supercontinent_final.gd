@@ -150,7 +150,6 @@ func _build_routes() -> void:
 		var curve := 36.0 if (zone_a + zone_b) % 2 == 0 else -36.0
 		_add_massive_route(SUPER_ZONE_CENTERS[zone_a], SUPER_ZONE_CENTERS[zone_b], 12.0, 34.0, curve)
 
-	# Boucles locales : chaque grande région possède au moins un axe secondaire.
 	for zone_index in range(SUPER_ZONE_CENTERS.size()):
 		_add_region_loop(zone_index, 112.0 + float(zone_index % 3) * 18.0)
 	_add_forest_path()
@@ -206,8 +205,6 @@ func _add_forest_path() -> void:
 		previous = point
 
 
-# Décors étendus sur toute la région, et non plus concentrés dans un rayon de
-# cinquante mètres. Les plaines restent volontairement ouvertes entre les zones.
 func _decorate_super_region(zone_index: int) -> void:
 	match zone_index:
 		0: _decorate_massive_volcano(zone_index)
@@ -256,7 +253,7 @@ func _decorate_massive_marsh(zone_index: int) -> void:
 	for index in range(8):
 		var x := center.x - 170.0 + float((index * 71) % 340)
 		var z := center.z - 130.0 + float((index * 53) % 260)
-		var pool := _visual_box("MarshPool", Vector3(34.0 + float(index % 3) * 9.0, 0.04, 22.0 + float(index % 2) * 11.0), Vector3(x, _super_height(x, z) + 0.08, z), Color(0.03, 0.28, 0.23, 0.82))
+		var pool: Node3D = _visual_box("MarshPool", Vector3(34.0 + float(index % 3) * 9.0, 0.04, 22.0 + float(index % 2) * 11.0), Vector3(x, _super_height(x, z) + 0.08, z), Color(0.03, 0.28, 0.23, 0.82))
 		pool.rotation.y = float(index) * 0.43
 
 
@@ -264,8 +261,9 @@ func _decorate_massive_ruins(zone_index: int) -> void:
 	var center: Vector3 = SUPER_ZONE_CENTERS[zone_index]
 	_spawn_super_model(RUIN_MODEL, _ground_point(center + Vector3(0.0, 0.0, -54.0)), Vector3.ONE * 2.8, Vector3.ZERO)
 	for x_offset in [-170.0, -85.0, 85.0, 170.0]:
+		var height_variant := int(int(absf(x_offset)) / 85.0) % 3
 		for z_offset in [-118.0, 118.0]:
-			_super_add_column(center + Vector3(x_offset, 0.0, z_offset), 8.0 + float((int(absf(x_offset)) / 85) % 3))
+			_super_add_column(center + Vector3(x_offset, 0.0, z_offset), 8.0 + float(height_variant))
 	_scatter_rocks(zone_index, 36, 220, 175, Color(0.48, 0.42, 0.30), 2.2)
 
 
@@ -343,7 +341,6 @@ func _near_internal_river(world_x: float, world_z: float, margin: float) -> bool
 	return absf(world_x - _river_one_x(world_z)) < margin or absf(world_z - _river_two_z(world_x)) < margin
 
 
-# La carte 2D suit désormais toute la longueur des deux fleuves du grand monde.
 func _add_map_river(north_south: bool) -> void:
 	var line := Line2D.new()
 	line.width = 5.0
@@ -377,8 +374,6 @@ func get_ci_water_points() -> Dictionary:
 	}
 
 
-# Tant qu'un doigt tient le joystick, le héros avance normalement. Dès que le
-# doigt est relâché, la vitesse résiduelle est supprimée à chaque image.
 func _process(delta: float) -> void:
 	super._process(delta)
 	if not is_instance_valid(player):
