@@ -1,0 +1,13 @@
+[
+  {"id":1,"folder":"01_region_volcanique","name":"Région volcanique"},
+  {"id":2,"folder":"02_grande_foret","name":"Grande forêt"},
+  {"id":3,"folder":"03_montagnes_enneigees","name":"Montagnes enneigées"},
+  {"id":4,"folder":"04_canyon_desertique","name":"Canyon désertique"},
+  {"id":5,"folder":"05_marais_et_sanctuaire","name":"Marais et sanctuaire"},
+  {"id":6,"folder":"06_ruines_sacrees","name":"Ruines sacrées"},
+  {"id":7,"folder":"07_cote_des_pirates","name":"Côte des pirates"},
+  {"id":8,"folder":"08_village_et_campagne","name":"Village et campagne"},
+  {"id":9,"folder":"09_capitale_royale","name":"Capitale royale"},
+  {"id":10,"folder":"10_hautes_terres_automnales","name":"Hautes terres automnales"},
+  {"id":11,"folder":"11_region_finale","name":"Région finale"}
+]
